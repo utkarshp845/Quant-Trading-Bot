@@ -51,6 +51,32 @@ def make_clients() -> tuple[TradingClient, StockHistoricalDataClient | CryptoHis
         data = StockHistoricalDataClient(api_key=key, secret_key=secret)
     return trading, data
 
+def _resolve_timeframe(timeframe_minutes: int) -> TimeFrame:
+    """
+    Alpaca's TimeFrame rejects Minute amounts outside 1-59 (and Hour outside
+    1-23), so a plain `timeframe_minutes` like 60 (hourly) or 1440 (daily)
+    must be re-expressed in the coarsest unit Alpaca accepts.
+    """
+    if timeframe_minutes <= 0:
+        raise ValueError(f"timeframe_minutes must be positive, got {timeframe_minutes}")
+
+    if timeframe_minutes % (24 * 60) == 0 and timeframe_minutes // (24 * 60) == 1:
+        return TimeFrame(1, TimeFrameUnit.Day)
+
+    if timeframe_minutes % 60 == 0:
+        hours = timeframe_minutes // 60
+        if 1 <= hours <= 23:
+            return TimeFrame(hours, TimeFrameUnit.Hour)
+
+    if 1 <= timeframe_minutes <= 59:
+        return TimeFrame(timeframe_minutes, TimeFrameUnit.Minute)
+
+    raise ValueError(
+        f"Unsupported timeframe_minutes={timeframe_minutes}: Alpaca bars support "
+        "1-59 minute, 1-23 hour, or 1-day (1440 minute) intervals."
+    )
+
+
 def get_historical_bars(
     data_client: StockHistoricalDataClient | CryptoHistoricalDataClient,
     symbol: str,
@@ -59,7 +85,7 @@ def get_historical_bars(
     end: datetime,
     limit: int | None = None,
 ) -> pd.DataFrame:
-    tf = TimeFrame(timeframe_minutes, TimeFrameUnit.Minute)
+    tf = _resolve_timeframe(timeframe_minutes)
     is_crypto = isinstance(data_client, CryptoHistoricalDataClient)
 
     try:

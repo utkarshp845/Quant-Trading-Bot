@@ -6,6 +6,36 @@ possible), and what to watch after deploying it.
 
 ---
 
+## 2026-08-05 — Fixed hourly-bar fetch crash; switched equity profile QQQ → TSLA
+
+**Bug fix:** `bot/broker_alpaca.py::get_historical_bars` built Alpaca's
+`TimeFrame` as `TimeFrame(timeframe_minutes, TimeFrameUnit.Minute)`
+unconditionally. Alpaca's SDK rejects Minute-unit amounts outside 1-59, so
+`TIMEFRAME_MINUTES=60` (every hourly-profile config) crashed every run after
+the 20s startup sleep with `ValueError: Second or Minute units can only be
+used with amounts between 1-59`, wiping the whole trade cycle instead of
+recording a HOLD. Added `_resolve_timeframe()` to express 60 minutes as
+`TimeFrame(1, Hour)` and any exact multiple of a day as `TimeFrame(1, Day)`,
+falling back to Minute only for genuinely sub-hour timeframes. Regression
+tests in `tests/test_broker_alpaca.py`.
+
+**Strategy change:** `config/live_spy.env` and `config/paper_spy.env` switched
+from `SYMBOL=QQQ` to `SYMBOL=TSLA`. This was not a drop-in swap — TSLA's
+hourly ATR% runs ~3x QQQ's, and replaying the QQQ-tuned config unchanged on
+TSLA produced a 29.6% max drawdown (vs QQQ's 6.7%) for essentially breakeven
+P&L. Re-ran the repo's walk-forward optimizer (`bot/optimize_strategy.py`)
+against TSLA bars (yfinance, no Alpaca keys available outside EC2) and
+re-tuned entry filters and position sizing specifically for TSLA. Shipped
+config: 28 trades / ~2.9yr, PF 1.56 (1.55 under 2x slippage), max DD 9.4%,
+net +$33.0 (+22%) on $150 — but almost all of that P&L came from the 2024
+rally year; 2023/2025/2026 were each roughly flat-to-negative. Full
+methodology and every acceptance-check number: `docs/strategy_tsla_2026-08.md`.
+**Watch:** run paper alongside live for a while before trusting this fully —
+the sample (28 trades) is much thinner than QQQ's (74), and the edge is
+concentrated in one good year.
+
+---
+
 ## 2026-07-12 — Repo alignment checkover
 
 **What:** Swept the repo for leftover references to the old BTC-5m-default

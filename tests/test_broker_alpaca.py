@@ -4,11 +4,45 @@ from zoneinfo import ZoneInfo
 import unittest
 
 import pandas as pd
+from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
 
-from bot.broker_alpaca import get_recent_bars
+from bot.broker_alpaca import _resolve_timeframe, get_recent_bars
 
 
 UTC = ZoneInfo("UTC")
+
+
+class ResolveTimeframeTests(unittest.TestCase):
+    def test_sub_hour_minutes_use_minute_unit(self):
+        tf = _resolve_timeframe(5)
+        self.assertEqual(tf.amount_value, 5)
+        self.assertEqual(tf.unit_value, TimeFrameUnit.Minute)
+
+    def test_sixty_minutes_uses_one_hour_unit(self):
+        # Regression: Alpaca rejects TimeFrame(60, Minute) — "Second or Minute
+        # units can only be used with amounts between 1-59." Hourly bars must
+        # be requested as TimeFrame(1, Hour) instead.
+        tf = _resolve_timeframe(60)
+        self.assertEqual(tf.amount_value, 1)
+        self.assertEqual(tf.unit_value, TimeFrameUnit.Hour)
+
+    def test_multi_hour_minutes_use_hour_unit(self):
+        tf = _resolve_timeframe(120)
+        self.assertEqual(tf.amount_value, 2)
+        self.assertEqual(tf.unit_value, TimeFrameUnit.Hour)
+
+    def test_daily_minutes_use_day_unit(self):
+        tf = _resolve_timeframe(1440)
+        self.assertEqual(tf.amount_value, 1)
+        self.assertEqual(tf.unit_value, TimeFrameUnit.Day)
+
+    def test_unsupported_timeframe_raises(self):
+        with self.assertRaises(ValueError):
+            _resolve_timeframe(90)
+
+    def test_non_positive_timeframe_raises(self):
+        with self.assertRaises(ValueError):
+            _resolve_timeframe(0)
 
 
 class BrokerAlpacaTests(unittest.TestCase):
