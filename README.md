@@ -181,10 +181,17 @@ Pre-built configs live in `config/`:
 | `config/live_spy.env` | TSLA | Small-account live equities — the recommended live profile |
 | `config/paper_btc.env` | BTC/USD | Paper trading Bitcoin (defensive uptrend-only) |
 | `config/live_btc.env` | BTC/USD | Live Bitcoin — defensive, dormant outside confirmed uptrends |
+| `config/paper_tsladay.env` | TSLA | **Experimental.** Same-day intraday TSLA (15m bars, bidirectional, flat by close, 1 trade/day cap) — paper only, see caveats below |
+| `config/live_tsladay.env` | TSLA | Same as above; not recommended live yet (only ~60 trading days of backtest evidence) |
 
-See `docs/strategy_tsla_2026-08.md` for the replay evidence behind the current
-equity profile (and `docs/strategy_revamp_2026-07.md` for the earlier QQQ
-revamp it replaced).
+See `docs/strategy_tsla_2026-08.md` for the replay evidence behind the
+`spy`-market equity profile (and `docs/strategy_revamp_2026-07.md` for the
+earlier QQQ revamp it replaced), and `docs/strategy_tsla_day_2026-08.md` for
+the `tsladay` intraday variant — a different, higher-frequency strategy for
+capturing TSLA's intraday swings rather than multi-day trends, built to
+respect a $150 cash account's T+1 settlement limits (flat by close, capped at
+1 trade/day). Run the paper profile for a real stretch before considering it
+for live capital.
 
 Load a profile by setting `BOT_PROFILE` / `BOT_MARKET`, by sourcing the file before running, or with the profile runner:
 
@@ -213,6 +220,9 @@ docker compose run --rm trade
 # BTC variants
 docker compose run --rm paper-btc
 docker compose run --rm trade-btc
+
+# Experimental same-day TSLA intraday variant (paper only for now)
+docker compose run --rm paper-tsladay
 
 # Generate monitor report
 docker compose run --rm monitor

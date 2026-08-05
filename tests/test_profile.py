@@ -112,6 +112,51 @@ class ProfileTests(unittest.TestCase):
             os.environ.clear()
             os.environ.update(original)
 
+    def test_paper_tsladay_profile_enables_same_day_flatten_defaults(self):
+        original = dict(os.environ)
+        try:
+            os.environ.pop("BOT_DATA_DIR", None)
+            os.environ.pop("BOT_LOGS_DIR", None)
+            os.environ.pop("BOT_REPORTS_DIR", None)
+            load_profile("paper", "tsladay")
+            self.assertEqual(os.environ["ALPACA_PAPER"], "true")
+            self.assertEqual(os.environ["SYMBOL"], "TSLA")
+            self.assertEqual(os.environ["IS_CRYPTO"], "false")
+            self.assertEqual(os.environ["ALLOW_OVERNIGHT_HOLDING"], "false")
+            self.assertEqual(os.environ["FLATTEN_BEFORE_CLOSE_MINUTES"], "15")
+            self.assertEqual(os.environ["MAX_TRADES_PER_DAY"], "1")
+            self.assertEqual(os.environ["ALLOW_SHORTS"], "true")
+            self.assertEqual(os.environ["TIMEFRAME_MINUTES"], "15")
+            self.assertIn("paper_tsladay", os.environ["BOT_DATA_DIR"])
+        finally:
+            os.environ.clear()
+            os.environ.update(original)
+
+    def test_live_tsladay_profile_disables_paper_mode(self):
+        original = dict(os.environ)
+        try:
+            os.environ.pop("BOT_DATA_DIR", None)
+            os.environ.pop("BOT_LOGS_DIR", None)
+            os.environ.pop("BOT_REPORTS_DIR", None)
+            load_profile("live", "tsladay")
+            self.assertEqual(os.environ["ALPACA_PAPER"], "false")
+            self.assertEqual(os.environ["SYMBOL"], "TSLA")
+            self.assertEqual(os.environ["MAX_TRADES_PER_DAY"], "1")
+            self.assertIn("live_tsladay", os.environ["BOT_DATA_DIR"])
+        finally:
+            os.environ.clear()
+            os.environ.update(original)
+
+    def test_live_tsladay_profile_env_contract_matches_config_file(self):
+        original = dict(os.environ)
+        try:
+            resolved = validate_profile_env("live", "tsladay")
+            self.assertEqual(resolved["SYMBOL"], "TSLA")
+            self.assertEqual(resolved["MAX_TRADES_PER_DAY"], "1")
+        finally:
+            os.environ.clear()
+            os.environ.update(original)
+
     def test_live_btc_profile_env_can_override_safety_defaults(self):
         original = dict(os.environ)
         with tempfile.TemporaryDirectory() as tmpdir:

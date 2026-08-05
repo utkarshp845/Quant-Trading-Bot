@@ -63,6 +63,12 @@ class CandidateResult:
     accepted: bool = False
 
 
+def _env_flag_default_true(raw: str | None) -> bool:
+    if raw is None or not raw.strip():
+        return True
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
 def _parse_grid(raw: str | None, fallback: list[str]) -> list[str]:
     if raw is None or not raw.strip():
         return fallback
@@ -75,7 +81,11 @@ def _candidate_grid() -> dict[str, list[str]]:
     atr_defaults = ["0.015"] if is_btc else ["0.0030", "0.0035", "0.0045"]
     long_atr_defaults = ["0.012"] if is_btc else ["0.0025", "0.0030", "0.0035"]
     return {
-        "ALLOW_SHORTS": ["false"],
+        # Long-only by default (swing configs hold multi-day and don't want
+        # short exposure to an overnight gap). A same-day flatten-by-close
+        # config has no overnight risk, so it can opt into evaluating shorts
+        # too via OPT_ALLOW_SHORTS_VALUES=true.
+        "ALLOW_SHORTS": _parse_grid(os.getenv("OPT_ALLOW_SHORTS_VALUES"), ["false"]),
         "SMA_FAST": _parse_grid(os.getenv("OPT_SMA_FAST_VALUES"), ["10", "20", "30"]),
         "SMA_SLOW": _parse_grid(os.getenv("OPT_SMA_SLOW_VALUES"), ["40", "50", "80"]),
         "ADX_THRESHOLD": _parse_grid(os.getenv("OPT_ADX_THRESHOLD_VALUES"), ["20", "25", "30"]),
@@ -291,9 +301,16 @@ def score_candidate(
     if trade_count <= 0:
         return -1_000_000.0
 
+    # Defaults preserve the original 0.5-3.0/day band (tuned for swing
+    # configs); a highly selective, capped-at-1/day config (e.g. a same-day
+    # flatten-by-close strategy respecting cash-account settlement limits)
+    # legitimately trades less often and can widen this via env.
+    min_trades_per_day = float(os.getenv("OPT_SCORE_MIN_TRADES_PER_DAY", "0.5"))
+    max_trades_per_day = float(os.getenv("OPT_SCORE_MAX_TRADES_PER_DAY", "3.0"))
+    target_trades_per_day = (min_trades_per_day + max_trades_per_day) / 2.0
     trades_per_day = float(full_summary.get("trades_per_day") or 0.0)
-    if trades_per_day < 0.5 or trades_per_day > 3.0:
-        return -500_000.0 - abs(trades_per_day - 1.5) * 1000.0
+    if trades_per_day < min_trades_per_day or trades_per_day > max_trades_per_day:
+        return -500_000.0 - abs(trades_per_day - target_trades_per_day) * 1000.0
 
     if slippage_summary is not None:
         slippage_trade_count = int(slippage_summary.get("trade_count") or 0)
@@ -320,7 +337,7 @@ def score_candidate(
     train_net = float(train_summary.get("net_pnl") or 0.0)
     test_net = float(test_summary.get("net_pnl") or 0.0)
     score -= abs(train_net - test_net) * 0.5
-    score -= abs(trades_per_day - 1.5) * 5.0
+    score -= abs(trades_per_day - target_trades_per_day) * 5.0
     score += _evidence_score_adjustment(evidence, params)
     return round(score, 6)
 
@@ -414,6 +431,7 @@ def acceptance_checks(result: CandidateResult, baseline: CandidateResult | None 
     max_trades_per_day = float(os.getenv("OPT_ACCEPT_MAX_TRADES_PER_DAY", "3.0"))
     min_positive_windows = int(os.getenv("OPT_ACCEPT_MIN_POSITIVE_TEST_WINDOWS", "2"))
     max_drawdown_abs = float(os.getenv("OPT_ACCEPT_MAX_DRAWDOWN_ABS", "0.10"))
+    require_shorts_disabled = _env_flag_default_true(os.getenv("OPT_ACCEPT_REQUIRE_SHORTS_DISABLED"))
 
     full_pf = float(result.full_summary.get("profit_factor") or 0.0)
     full_expectancy = float(result.full_summary.get("expectancy") or 0.0)
@@ -430,7 +448,11 @@ def acceptance_checks(result: CandidateResult, baseline: CandidateResult | None 
         "at_least_two_positive_test_windows": result.positive_test_windows >= min_positive_windows,
         "two_x_slippage_profit_factor_at_least_1": slippage_pf >= 1.0,
         "max_drawdown_within_live_limit": full_drawdown <= max_drawdown_abs,
-        "shorts_disabled": result.params.get("ALLOW_SHORTS", "false").strip().lower() == "false",
+        "shorts_disabled": (
+            result.params.get("ALLOW_SHORTS", "false").strip().lower() == "false"
+            if require_shorts_disabled
+            else True
+        ),
     }
 
     if baseline is not None:

@@ -22,6 +22,18 @@ services:
     <<: *bot
     command: ["python", "-m", "bot.profile_runner", "paper", "trade", "btc"]
 
+  # Experimental same-day TSLA intraday variant - see config/live_tsladay.env
+  # for why this isn't wired up as a default deploy target yet (only ~60
+  # trading days of backtest evidence vs the primary "spy" profile's 2.9yr).
+  # Run paper-tsladay for a real stretch before ever using trade-tsladay.
+  trade-tsladay:
+    <<: *bot
+    command: ["python", "-m", "bot.profile_runner", "live", "trade", "tsladay"]
+
+  paper-tsladay:
+    <<: *bot
+    command: ["python", "-m", "bot.profile_runner", "paper", "trade", "tsladay"]
+
   monitor:
     <<: *bot
     command: ["python", "-m", "bot.profile_runner", "live", "monitor", "spy"]
@@ -37,6 +49,10 @@ services:
   btc-monitor:
     <<: *bot
     command: ["python", "-m", "bot.profile_runner", "live", "monitor", "btc"]
+
+  paper-tsladay-monitor:
+    <<: *bot
+    command: ["python", "-m", "bot.profile_runner", "paper", "monitor", "tsladay"]
 
   research:
     <<: *bot
