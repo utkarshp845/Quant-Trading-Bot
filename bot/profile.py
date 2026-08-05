@@ -11,7 +11,7 @@ from bot.paths import APP_ROOT
 
 DEFAULT_MARKET = "spy"
 SUPPORTED_PROFILES = {"paper", "live"}
-SUPPORTED_MARKETS = {"spy", "btc"}
+SUPPORTED_MARKETS = {"spy", "btc", "tsladay"}
 
 LIVE_BTC_SAFETY_ENV = {
     "ALLOW_SHORTS": "false",
@@ -104,6 +104,17 @@ def _set_market_defaults(market: str, profile_env_keys: set[str] | None = None) 
             "IS_CRYPTO": "true",
             "ALLOW_OVERNIGHT_HOLDING": "true",
             "FLATTEN_BEFORE_CLOSE_MINUTES": "0",
+        }
+    elif market == "tsladay":
+        # Same-day-only variant: no overnight TSLA gap exposure, and capped
+        # (via MAX_TRADES_PER_DAY in the profile env) at ~1 round trip/day so
+        # a $150 cash account doesn't risk a good-faith violation from
+        # reusing unsettled (T+1) proceeds.
+        defaults = {
+            "SYMBOL": "TSLA",
+            "IS_CRYPTO": "false",
+            "ALLOW_OVERNIGHT_HOLDING": "false",
+            "FLATTEN_BEFORE_CLOSE_MINUTES": "15",
         }
     else:
         raise ValueError(f"Unsupported bot market: {market}")

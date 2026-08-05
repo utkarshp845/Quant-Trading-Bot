@@ -15,7 +15,15 @@ from bot.metrics import add_condition_buckets, best_worst_conditions, closed_tra
 from bot.paths import REPORTS_DIR, ensure_runtime_dirs
 from bot.risk import RiskConfig
 from bot.strategy_ma import StrategyConfig, build_strategy_config_from_env, compute_indicators, generate_signal
-from bot.trade_controls import ReplayState, compute_entry_qty, evaluate_replay_entry, record_replay_entry, record_replay_exit, sync_replay_day
+from bot.trade_controls import (
+    ReplayState,
+    compute_entry_qty,
+    evaluate_replay_entry,
+    evaluate_session_exit,
+    record_replay_entry,
+    record_replay_exit,
+    sync_replay_day,
+)
 
 
 ET = ZoneInfo("America/New_York")
@@ -123,6 +131,12 @@ def run_replay(
     max_consecutive_entry_failures_per_day = int(os.getenv("MAX_CONSECUTIVE_ENTRY_FAILURES_PER_DAY", "0"))
     allow_shorts = cfg.allow_shorts
     hard_stop_atr_mult = float(os.getenv("HARD_STOP_ATR_MULT", "0"))
+    # Mirrors bot/main.py's live-loop defaults so a replay of a day-trading
+    # config (ALLOW_OVERNIGHT_HOLDING=false, FLATTEN_BEFORE_CLOSE_MINUTES>0)
+    # actually gets forced flat before close instead of silently holding
+    # through the overnight gap the live bot would have exited.
+    allow_overnight_holding = _env_flag("ALLOW_OVERNIGHT_HOLDING", False)
+    flatten_before_close_minutes = max(0, int(os.getenv("FLATTEN_BEFORE_CLOSE_MINUTES", "5")))
     is_crypto = _env_flag("IS_CRYPTO", False)
     fractional_qty_enabled = is_crypto or (_env_flag("ALLOW_FRACTIONAL_EQUITIES", False) and not is_crypto)
     risk_config = RiskConfig(
@@ -156,9 +170,16 @@ def run_replay(
             position.high_water = max(position.high_water, price)
             position.low_water = min(position.low_water, price)
             trail_mult = cfg.trail_atr_multiplier_for(position.side)
+            session_exit = evaluate_session_exit(
+                position.qty,
+                str(position.entry_ts),
+                allow_overnight_holding=allow_overnight_holding,
+                flatten_before_close_minutes=flatten_before_close_minutes,
+                now_utc=ts.to_pydatetime() if hasattr(ts, "to_pydatetime") else ts,
+            )
 
             if position.side == "long":
-                should_exit = False
+                should_exit = session_exit.should_exit
                 if (
                     hard_stop_atr_mult > 0
                     and atr_value is not None
@@ -200,7 +221,7 @@ def run_replay(
                     position = None
                     exited_this_bar = True
             else:
-                should_exit = False
+                should_exit = session_exit.should_exit
                 if (
                     hard_stop_atr_mult > 0
                     and atr_value is not None

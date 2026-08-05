@@ -172,6 +172,7 @@ Current runtime defaults:
 - `config/paper_btc.env` is an exact mirror of `config/live_btc.env` (same sizing, same filters) so paper fills validate the strategy that actually runs live
 - `reports/monitor_latest.md` includes 24h/7d rejection counts, near-miss entry bars, and latest filter metrics for diagnosing quiet BTC live periods
 - `config/live_spy.env` trades TSLA on hourly bars (fractional, long-only, ~60% notional) and is the recommended default live profile for a small account; see `docs/strategy_tsla_2026-08.md` for the replay evidence. Replay any change to it before relying on it live.
+- `config/paper_tsladay.env` / `config/live_tsladay.env` (market `tsladay`) is a separate, experimental same-day TSLA intraday strategy — 15m bars, bidirectional, flat by close, capped at 1 trade/day (a $150 cash account can't safely do more without risking a good-faith violation from T+1 settlement). Only ~60 trading days of backtest evidence (free intraday data is limited); see `docs/strategy_tsla_day_2026-08.md`. Run `docker compose run --rm paper-tsladay` — not recommended live yet.
 
 ## Notes
 
