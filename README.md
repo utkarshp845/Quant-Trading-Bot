@@ -90,23 +90,32 @@ Change-by-change history: [`docs/BUILD_LOG.md`](docs/BUILD_LOG.md).
 
 ## Current Strategy & Results
 
-The default live/paper deployment is an **hourly QQQ trend-following
-strategy** sized for a small account: long-only, fractional, ~90% notional
-per position, a daily-EMA regime filter, and wide trailing exits that hold
-winning trends for days rather than minutes. A defensive BTC/USD profile is
-also available — it only trades confirmed multi-hour uptrends and is
-designed to sit out downtrends entirely rather than force trades.
+The default live/paper deployment is an **hourly TSLA trend-following
+strategy** sized for a small account: long-only, fractional, ~60% notional
+per position, a daily-EMA regime filter, and trailing exits that hold
+winning trends for days rather than minutes. Position sizing is trimmed
+relative to the earlier QQQ profile because TSLA's hourly volatility runs
+~3x QQQ's. A defensive BTC/USD profile is also available — it only trades
+confirmed multi-hour uptrends and is designed to sit out downtrends entirely
+rather than force trades.
 
 Replay results, `$150` starting capital, real historical bars, realistic
-slippage assumptions (see the strategy doc for methodology — **these are
+slippage assumptions (see the strategy docs for methodology — **these are
 backtest results, not live account performance**):
 
 | Profile | Period | Net P&L | Profit Factor | Max Drawdown | Trades |
 |---|---|---|---|---|---|
-| QQQ hourly trend (live default) | 2023-08 → 2026-07 (~3 yrs) | +$55.3 (+37%) | 1.76 | 6.7% | 74 (~2/mo) |
+| TSLA hourly trend (live default) | 2023-09 → 2026-08 (~2.9 yrs) | +$33.0 (+22%) | 1.56 | 9.4% | 28 (~9/yr) |
+| *(retired)* QQQ hourly trend | 2023-08 → 2026-07 (~3 yrs) | +$55.3 (+37%) | 1.76 | 6.7% | 74 (~2/mo) |
 | BTC hourly, strict uptrend gate | 2025-26 (bear year, BTC −46%) | $0.00 | — | 0% | 0 (stayed flat) |
 | BTC hourly, strict uptrend gate | 2024-25 (bull year) | +$3.1 | 1.14 | 10.6% | 12 |
 | *(retired)* BTC 5m scalp, live config | 2026-03 → 2026-07 (real bars) | −$0.85 | 0.0 | 0.6% | 2 |
+
+**Caveat on the TSLA numbers**: almost all of that +$33.0 came from one
+strong trend year (2024: +$52.0); 2023, 2025, and 2026 were each roughly flat
+to slightly negative. See [`docs/strategy_tsla_2026-08.md`](docs/strategy_tsla_2026-08.md)
+for the full breakdown — this is a lumpier, thinner-sample edge than the QQQ
+config it replaced.
 
 ## How It Works
 
@@ -168,12 +177,14 @@ Pre-built configs live in `config/`:
 
 | File | Symbol | Use |
 |---|---|---|
-| `config/paper_spy.env` | QQQ | Paper trading equities (hourly trend, multi-day holds) |
-| `config/live_spy.env` | QQQ | Small-account live equities — the recommended live profile |
+| `config/paper_spy.env` | TSLA | Paper trading equities (hourly trend, multi-day holds) |
+| `config/live_spy.env` | TSLA | Small-account live equities — the recommended live profile |
 | `config/paper_btc.env` | BTC/USD | Paper trading Bitcoin (defensive uptrend-only) |
 | `config/live_btc.env` | BTC/USD | Live Bitcoin — defensive, dormant outside confirmed uptrends |
 
-See `docs/strategy_revamp_2026-07.md` for the replay evidence behind these profiles.
+See `docs/strategy_tsla_2026-08.md` for the replay evidence behind the current
+equity profile (and `docs/strategy_revamp_2026-07.md` for the earlier QQQ
+revamp it replaced).
 
 Load a profile by setting `BOT_PROFILE` / `BOT_MARKET`, by sourcing the file before running, or with the profile runner:
 
@@ -352,18 +363,19 @@ profile for growth.
 
 ## Small Equity Accounts
 
-For a roughly `$150` account, one whole share of most ETFs is too large a
+For a roughly `$150` account, one whole share of most stocks is too large a
 chunk of the account to size or diversify sensibly. `config/live_spy.env`
-(despite the filename, it trades `QQQ`) already sets this up:
+(despite the filename, it trades `TSLA`) already sets this up:
 
 - `ALLOW_FRACTIONAL_EQUITIES=true`
 - `ALLOW_SHORTS=false`
-- `POSITION_SIZING_MODE=notional_cap` with `TARGET_POSITION_NOTIONAL_PCT=0.90` — near-full-notional single positions, since a $150 account can't usefully diversify anyway
+- `POSITION_SIZING_MODE=notional_cap` with `TARGET_POSITION_NOTIONAL_PCT=0.60` — most, but not all, of the account in a single position; trimmed down from the 0.90 used for the lower-volatility QQQ profile it replaced (see `docs/strategy_tsla_2026-08.md`)
 - `MAX_POSITION_NOTIONAL_PCT` above the target as a hard ceiling
 
 ## Docs
 
-- [`docs/strategy_revamp_2026-07.md`](docs/strategy_revamp_2026-07.md) — the investigation and evidence behind the current strategy
+- [`docs/strategy_tsla_2026-08.md`](docs/strategy_tsla_2026-08.md) — the investigation and evidence behind the current (TSLA) strategy
+- [`docs/strategy_revamp_2026-07.md`](docs/strategy_revamp_2026-07.md) — the earlier QQQ revamp this replaced
 - [`docs/BUILD_LOG.md`](docs/BUILD_LOG.md) — running log of strategy and infrastructure changes
 - [`docs/github_actions_ec2.md`](docs/github_actions_ec2.md) — EC2 deployment setup
 - [`OPERATIONS.md`](OPERATIONS.md) — day-to-day commands (run, monitor, research, optimize)

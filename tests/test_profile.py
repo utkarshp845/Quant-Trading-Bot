@@ -23,7 +23,7 @@ class ProfileTests(unittest.TestCase):
             os.environ.pop("RESEARCH_STARTING_EQUITY", None)
             load_profile("paper")
             self.assertEqual(os.environ["ALPACA_PAPER"], "true")
-            self.assertEqual(os.environ["SYMBOL"], "QQQ")
+            self.assertEqual(os.environ["SYMBOL"], "TSLA")
             self.assertEqual(os.environ["RESEARCH_STARTING_EQUITY"], "150")
             self.assertIn("runtime", os.environ["BOT_DATA_DIR"])
             self.assertIn("paper", os.environ["BOT_DATA_DIR"])
@@ -39,7 +39,7 @@ class ProfileTests(unittest.TestCase):
             os.environ.pop("BOT_REPORTS_DIR", None)
             load_profile("live")
             self.assertEqual(os.environ["ALPACA_PAPER"], "false")
-            self.assertEqual(os.environ["SYMBOL"], "QQQ")
+            self.assertEqual(os.environ["SYMBOL"], "TSLA")
             self.assertIn("live", os.environ["BOT_DATA_DIR"])
         finally:
             os.environ.clear()

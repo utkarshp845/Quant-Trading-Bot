@@ -116,7 +116,7 @@ Current default schedule:
 - every day
 - `America/New_York` timezone
 
-The default deploy market is `spy` (`SYMBOL=QQQ`, see `config/live_spy.env`),
+The default deploy market is `spy` (`SYMBOL=TSLA`, see `config/live_spy.env`),
 which trades hourly bars during the equity session — the bot itself checks
 market hours and holds outside them, so running the cron job around the
 clock is harmless, just a no-op most of the day. The `btc` market
