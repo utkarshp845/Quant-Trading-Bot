@@ -11,7 +11,7 @@ from bot.paths import APP_ROOT
 
 DEFAULT_MARKET = "spy"
 SUPPORTED_PROFILES = {"paper", "live"}
-SUPPORTED_MARKETS = {"spy", "btc", "tsladay"}
+SUPPORTED_MARKETS = {"spy", "btc", "tsladay", "options"}
 
 LIVE_BTC_SAFETY_ENV = {
     "ALLOW_SHORTS": "false",
@@ -115,6 +115,22 @@ def _set_market_defaults(market: str, profile_env_keys: set[str] | None = None) 
             "IS_CRYPTO": "false",
             "ALLOW_OVERNIGHT_HOLDING": "false",
             "FLATTEN_BEFORE_CLOSE_MINUTES": "15",
+        }
+    elif market == "options":
+        # NVDA/TSLA long calls/puts on the existing trend signal. Unlike
+        # every other market, this one evaluates multiple symbols
+        # (OPTION_SYMBOLS) in a single process/run — see
+        # bot/options_engine.py and docs/strategy_options_2026-08.md. Long
+        # options bound risk to premium paid, so — unlike the equity
+        # profiles — shorts (puts) are enabled by default here.
+        defaults = {
+            "SYMBOL": "NVDA",
+            "OPTION_SYMBOLS": "NVDA,TSLA",
+            "IS_CRYPTO": "false",
+            "IS_OPTIONS": "true",
+            "ALLOW_SHORTS": "true",
+            "ALLOW_OVERNIGHT_HOLDING": "true",
+            "FLATTEN_BEFORE_CLOSE_MINUTES": "0",
         }
     else:
         raise ValueError(f"Unsupported bot market: {market}")

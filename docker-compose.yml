@@ -54,6 +54,41 @@ services:
     <<: *bot
     command: ["python", "-m", "bot.profile_runner", "paper", "monitor", "tsladay"]
 
+  # NVDA/TSLA long calls/puts on the existing trend signal — see
+  # config/paper_options.env and docs/strategy_options_2026-08.md. Paper
+  # only for now: run this for a real stretch before ever considering
+  # trade-options live, the same standard already applied to tsladay.
+  # Requires options trading enabled on the Alpaca paper account first
+  # (Alpaca's own dashboard — separate approval from live).
+  paper-options:
+    <<: *bot
+    command: ["python", "-m", "bot.profile_runner", "paper", "trade", "options"]
+
+  # NOT RECOMMENDED YET — see config/live_options.env. Present so the live
+  # path is ready, not because it should be run today.
+  trade-options:
+    <<: *bot
+    command: ["python", "-m", "bot.profile_runner", "live", "trade", "options"]
+
+  paper-options-monitor:
+    <<: *bot
+    command: ["python", "-m", "bot.profile_runner", "paper", "monitor", "options"]
+
+  # bot/options_research.py researches one SYMBOL per run (default NVDA, set
+  # by config/*_options.env) — run both services to get a report for each
+  # underlying.
+  research-options-nvda:
+    <<: *bot
+    environment:
+      - SYMBOL=NVDA
+    command: ["python", "-m", "bot.profile_runner", "live", "research", "options"]
+
+  research-options-tsla:
+    <<: *bot
+    environment:
+      - SYMBOL=TSLA
+    command: ["python", "-m", "bot.profile_runner", "live", "research", "options"]
+
   research:
     <<: *bot
     command: ["python", "-m", "bot.profile_runner", "live", "research", "spy"]
