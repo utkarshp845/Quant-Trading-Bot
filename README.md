@@ -27,6 +27,7 @@ predict future results. See [Disclaimer](#disclaimer).
 - [Deployment](#deployment)
 - [Risk Controls](#risk-controls)
 - [Crypto (BTC/USD)](#crypto-btcusd)
+- [Options (NVDA/TSLA)](#options-nvdatsla)
 - [Small Equity Accounts](#small-equity-accounts)
 - [Docs](#docs)
 - [Disclaimer](#disclaimer)
@@ -183,6 +184,8 @@ Pre-built configs live in `config/`:
 | `config/live_btc.env` | BTC/USD | Live Bitcoin — defensive, dormant outside confirmed uptrends |
 | `config/paper_tsladay.env` | TSLA | **Experimental.** Same-day intraday TSLA (15m bars, bidirectional, flat by close, 1 trade/day cap) — paper only, see caveats below |
 | `config/live_tsladay.env` | TSLA | Same as above; not recommended live yet (only ~60 trading days of backtest evidence) |
+| `config/paper_options.env` | NVDA, TSLA | **New, paper only.** Long calls/puts on the equity trend signal — see [Options (NVDA/TSLA)](#options-nvdatsla) below and `docs/strategy_options_2026-08.md` |
+| `config/live_options.env` | NVDA, TSLA | Same as above; not recommended live yet — no paper track record for this strategy |
 
 See `docs/strategy_tsla_2026-08.md` for the replay evidence behind the
 `spy`-market equity profile (and `docs/strategy_revamp_2026-07.md` for the
@@ -223,6 +226,9 @@ docker compose run --rm trade-btc
 
 # Experimental same-day TSLA intraday variant (paper only for now)
 docker compose run --rm paper-tsladay
+
+# NVDA/TSLA long calls/puts (paper only for now — see Options section below)
+docker compose run --rm paper-options
 
 # Generate monitor report
 docker compose run --rm monitor
@@ -371,6 +377,52 @@ strict 4h uptrend regime gate, near-full-notional single positions, and wide
 trailing exits. Expect them to be dormant in downtrends. Prefer the equity
 profile for growth.
 
+## Options (NVDA/TSLA)
+
+`config/paper_options.env` / `config/live_options.env` trade **actual
+option contracts** (long calls/puts) on NVDA and TSLA, using the same
+trend signal already validated for TSLA equities — see
+[`docs/strategy_options_2026-08.md`](docs/strategy_options_2026-08.md) for
+the full rationale. Highlights:
+
+- **Both directions, bounded risk.** Unlike the equity profiles
+  (`ALLOW_SHORTS=false`, because naked stock shorting has undefined risk on
+  a small cash account), the options profile buys puts in confirmed
+  downtrends and calls in confirmed uptrends — a long option's risk is
+  capped at the premium paid either way.
+- **Contract selection is the strategy.** Targets a moderate delta (~0.65)
+  and 30–45 days to expiration, exits by 12 DTE remaining, skips contracts
+  with wide bid-ask spreads, and blocks new entries near earnings. The goal
+  is to keep the contract's price behavior close to the underlying's real
+  (modest) edge, not to buy cheap far-OTM lottery tickets.
+- **One position at a time, across NVDA and TSLA combined**
+  (`bot/options_engine.py` evaluates both symbols in a single run so this
+  is enforceable) — a ~$500 account can't support two "real" options
+  positions without either concentrating too much or degrading both toward
+  lottery tickets.
+- **Expect it to trade rarely.** A single NVDA or TSLA contract at the
+  target delta/DTE often costs $300–$1,500+ in premium. If nothing
+  affordable fits the target band, the bot sits out rather than buying a
+  cheaper, more lottery-like contract — same philosophy as the BTC profile
+  sitting out downtrends.
+- **Backtest caveat:** there's no free historical options-chain data, so
+  `bot/options_research.py` models contract prices with Black-Scholes over
+  historical stock prices rather than replaying real historical options
+  quotes. Every report is headed accordingly — treat it as a directional
+  sanity check, not proof of live viability.
+
+Requires options trading to be enabled on the Alpaca account first (a
+compliance approval in Alpaca's own dashboard, separate for paper and
+live) — verify with:
+
+```bash
+python -m bot.profile_runner paper connectivity options
+```
+
+`config/live_options.env` exists so the live path is ready, but — like
+`tsladay` before it — it's **not recommended yet**: run
+`docker compose run --rm paper-options` for a real stretch first.
+
 ## Small Equity Accounts
 
 For a roughly `$150` account, one whole share of most stocks is too large a
@@ -384,6 +436,7 @@ chunk of the account to size or diversify sensibly. `config/live_spy.env`
 
 ## Docs
 
+- [`docs/strategy_options_2026-08.md`](docs/strategy_options_2026-08.md) — the NVDA/TSLA long calls/puts strategy: contract selection rules, friction, affordability at ~$500, and the modeled-backtest caveat
 - [`docs/strategy_tsla_2026-08.md`](docs/strategy_tsla_2026-08.md) — the investigation and evidence behind the current (TSLA) strategy
 - [`docs/strategy_revamp_2026-07.md`](docs/strategy_revamp_2026-07.md) — the earlier QQQ revamp this replaced
 - [`docs/BUILD_LOG.md`](docs/BUILD_LOG.md) — running log of strategy and infrastructure changes

@@ -47,6 +47,33 @@ class PositionState:
 
 
 @dataclass
+class OptionPositionState:
+    symbol: str
+    side: Optional[str]  # "long" (call) or "short" (put), direction of the underlying bet
+    underlying_symbol: Optional[str]
+    contract_symbol: Optional[str]
+    option_type: Optional[str]
+    strike: Optional[float]
+    expiration: Optional[str]
+    contracts: Optional[float]
+    entry_price: Optional[float]  # per-contract entry premium
+    entry_ts: Optional[str]
+    entry_delta: Optional[float]
+    entry_dte: Optional[int]
+    entry_spot: Optional[float]  # underlying price at entry (fixed; for hard-stop distance)
+    highest_price: Optional[float]  # underlying high-water mark (for trailing-stop logic)
+    lowest_price: Optional[float]  # underlying low-water mark
+    entry_bar_ts: Optional[str]
+    entry_signal_side: Optional[str]
+    entry_adx: Optional[float]
+    entry_atr_pct: Optional[float]
+    entry_volume_ratio: Optional[float]
+    entry_sma_spread_pct: Optional[float]
+    entry_window_bucket: Optional[str]
+    entry_signal_strength: Optional[float]
+
+
+@dataclass
 class OrderRecord:
     id: int
     ts: str
@@ -238,6 +265,17 @@ def init_db(conn: sqlite3.Connection) -> None:
         ("entry_window_bucket", "TEXT"),
         ("entry_signal_strength", "REAL"),
         ("realized_slippage_estimate", "REAL"),
+        # Options fields: additive, only populated by the "options" market
+        # (bot/options_engine.py). NULL for every equity/crypto position row.
+        ("underlying_symbol", "TEXT"),
+        ("contract_symbol", "TEXT"),
+        ("option_type", "TEXT"),
+        ("strike", "REAL"),
+        ("expiration", "TEXT"),
+        ("contracts", "REAL"),
+        ("entry_delta", "REAL"),
+        ("entry_dte", "INTEGER"),
+        ("entry_spot", "REAL"),
     ):
         if name not in position_cols:
             conn.execute(f"ALTER TABLE position_state ADD COLUMN {name} {sql_type};")
@@ -513,6 +551,140 @@ def upsert_position_state(
 
 def clear_position_state(conn: sqlite3.Connection, symbol: str) -> None:
     conn.execute("DELETE FROM position_state WHERE symbol=?;", (symbol,))
+    conn.commit()
+
+
+def get_option_position_state(conn: sqlite3.Connection, symbol: str) -> OptionPositionState:
+    row = conn.execute(
+        """
+        SELECT symbol, side, underlying_symbol, contract_symbol, option_type, strike, expiration, contracts,
+               entry_price, entry_ts, entry_delta, entry_dte, entry_spot, highest_price, lowest_price, entry_bar_ts,
+               entry_signal_side, entry_adx, entry_atr_pct, entry_volume_ratio, entry_sma_spread_pct,
+               entry_window_bucket, entry_signal_strength
+        FROM position_state
+        WHERE symbol=?;
+        """,
+        (symbol,),
+    ).fetchone()
+
+    if row is None:
+        return OptionPositionState(
+            symbol, None, None, None, None, None, None, None, None, None, None, None, None,
+            None, None, None, None, None, None, None, None, None, None,
+        )
+
+    return OptionPositionState(
+        symbol=row["symbol"],
+        side=row["side"],
+        underlying_symbol=row["underlying_symbol"],
+        contract_symbol=row["contract_symbol"],
+        option_type=row["option_type"],
+        strike=row["strike"],
+        expiration=row["expiration"],
+        contracts=row["contracts"],
+        entry_price=row["entry_price"],
+        entry_ts=row["entry_ts"],
+        entry_delta=row["entry_delta"],
+        entry_dte=row["entry_dte"],
+        entry_spot=row["entry_spot"],
+        highest_price=row["highest_price"],
+        lowest_price=row["lowest_price"],
+        entry_bar_ts=row["entry_bar_ts"],
+        entry_signal_side=row["entry_signal_side"],
+        entry_adx=row["entry_adx"],
+        entry_atr_pct=row["entry_atr_pct"],
+        entry_volume_ratio=row["entry_volume_ratio"],
+        entry_sma_spread_pct=row["entry_sma_spread_pct"],
+        entry_window_bucket=row["entry_window_bucket"],
+        entry_signal_strength=row["entry_signal_strength"],
+    )
+
+
+def upsert_option_position_state(
+    conn: sqlite3.Connection,
+    symbol: str,
+    side: Optional[str],
+    underlying_symbol: Optional[str],
+    contract_symbol: Optional[str],
+    option_type: Optional[str],
+    strike: Optional[float],
+    expiration: Optional[str],
+    contracts: Optional[float],
+    entry_price: Optional[float],
+    entry_ts: Optional[str],
+    entry_delta: Optional[float],
+    entry_dte: Optional[int],
+    entry_spot: Optional[float],
+    highest_price: Optional[float],
+    lowest_price: Optional[float],
+    entry_bar_ts: Optional[str] = None,
+    entry_signal_side: Optional[str] = None,
+    entry_adx: Optional[float] = None,
+    entry_atr_pct: Optional[float] = None,
+    entry_volume_ratio: Optional[float] = None,
+    entry_sma_spread_pct: Optional[float] = None,
+    entry_window_bucket: Optional[str] = None,
+    entry_signal_strength: Optional[float] = None,
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO position_state (
+            symbol, side, underlying_symbol, contract_symbol, option_type, strike, expiration, contracts,
+            entry_price, entry_ts, entry_delta, entry_dte, entry_spot, highest_price, lowest_price, entry_bar_ts,
+            entry_signal_side, entry_adx, entry_atr_pct, entry_volume_ratio, entry_sma_spread_pct,
+            entry_window_bucket, entry_signal_strength
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(symbol) DO UPDATE SET
+            side=excluded.side,
+            underlying_symbol=excluded.underlying_symbol,
+            contract_symbol=excluded.contract_symbol,
+            option_type=excluded.option_type,
+            strike=excluded.strike,
+            expiration=excluded.expiration,
+            contracts=excluded.contracts,
+            entry_price=excluded.entry_price,
+            entry_ts=excluded.entry_ts,
+            entry_delta=excluded.entry_delta,
+            entry_dte=excluded.entry_dte,
+            entry_spot=COALESCE(excluded.entry_spot, position_state.entry_spot),
+            highest_price=excluded.highest_price,
+            lowest_price=excluded.lowest_price,
+            entry_bar_ts=COALESCE(excluded.entry_bar_ts, position_state.entry_bar_ts),
+            entry_signal_side=COALESCE(excluded.entry_signal_side, position_state.entry_signal_side),
+            entry_adx=COALESCE(excluded.entry_adx, position_state.entry_adx),
+            entry_atr_pct=COALESCE(excluded.entry_atr_pct, position_state.entry_atr_pct),
+            entry_volume_ratio=COALESCE(excluded.entry_volume_ratio, position_state.entry_volume_ratio),
+            entry_sma_spread_pct=COALESCE(excluded.entry_sma_spread_pct, position_state.entry_sma_spread_pct),
+            entry_window_bucket=COALESCE(excluded.entry_window_bucket, position_state.entry_window_bucket),
+            entry_signal_strength=COALESCE(excluded.entry_signal_strength, position_state.entry_signal_strength);
+        """,
+        (
+            symbol,
+            side,
+            underlying_symbol,
+            contract_symbol,
+            option_type,
+            strike,
+            expiration,
+            contracts,
+            entry_price,
+            entry_ts,
+            entry_delta,
+            entry_dte,
+            entry_spot,
+            highest_price,
+            lowest_price,
+            entry_bar_ts,
+            entry_signal_side,
+            entry_adx,
+            entry_atr_pct,
+            entry_volume_ratio,
+            entry_sma_spread_pct,
+            entry_window_bucket,
+            entry_signal_strength,
+        ),
+    )
     conn.commit()
 
 
