@@ -2,6 +2,14 @@
 
 Date: 2026-08-05
 
+> **RETIRED (2026-08-10).** The `tsladay` market profile
+> (`config/paper_tsladay.env`, `config/live_tsladay.env`) and its code
+> wiring in `bot/profile.py` have been removed from the codebase as part of
+> a pivot to focus the active strategy work on NVDA/TSLA options
+> (`docs/strategy_options_2026-08.md`). This doc is kept as historical
+> record of the research behind it — see `docs/BUILD_LOG.md` for the
+> removal entry.
+
 ## Why this doc exists
 
 The `tsladay` market profiles (`config/paper_tsladay.env`,

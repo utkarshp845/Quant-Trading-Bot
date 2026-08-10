@@ -9,7 +9,7 @@ schedule="${CRON_SCHEDULE:-*/5 * * * *}"
 monitor_schedule="${MONITOR_CRON_SCHEDULE:-17 * * * *}"
 research_schedule="${RESEARCH_CRON_SCHEDULE:-42 0 * * *}"
 docker_bin="${DOCKER_BIN:-$(command -v docker || true)}"
-market="${DEPLOY_MARKET:-btc}"
+market="${DEPLOY_MARKET:-spy}"
 job_marker="# trading-bot-${profile}"
 
 case "$profile" in

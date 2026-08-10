@@ -46,7 +46,7 @@ def validate_profile_env(profile: str, market: str) -> dict[str, str | None]:
 def main(argv: list[str] | None = None) -> int:
     args = argv if argv is not None else sys.argv[1:]
     profile = args[0] if len(args) >= 1 else os.getenv("DEPLOY_PROFILE", "live")
-    market = args[1] if len(args) >= 2 else os.getenv("DEPLOY_MARKET", "btc")
+    market = args[1] if len(args) >= 2 else os.getenv("DEPLOY_MARKET", "spy")
 
     resolved = validate_profile_env(profile, market)
     print(

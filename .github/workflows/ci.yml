@@ -39,8 +39,8 @@ jobs:
       - name: Run live SPY profile validation
         run: python -m bot.profile_runner live validate
 
-      - name: Run paper BTC profile validation
-        run: python -m bot.profile_runner paper validate btc
+      - name: Run paper options profile validation
+        run: python -m bot.profile_runner paper validate options
 
-      - name: Run live BTC profile validation
-        run: python -m bot.profile_runner live validate btc
+      - name: Run live options profile validation
+        run: python -m bot.profile_runner live validate options

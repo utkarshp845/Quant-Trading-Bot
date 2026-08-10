@@ -8,8 +8,8 @@ from bot.profile import load_profile
 
 def _usage() -> int:
     print(
-        "Usage: python -m bot.profile_runner <paper|live|paper-btc|live-btc> "
-        "<trade|monitor|research|optimize|validate|connectivity> [spy|btc|tsladay|options]"
+        "Usage: python -m bot.profile_runner <paper|live> "
+        "<trade|monitor|daily|research|optimize|validate|connectivity> [spy|options]"
     )
     return 2
 
@@ -44,6 +44,16 @@ def main(argv: list[str] | None = None) -> int:
         from bot.report_monitor import main as monitor_main
 
         monitor_main()
+        return 0
+
+    if action == "daily":
+        # Real (non-synthetic) daily Markdown report built from this
+        # profile's runtime database — see bot/report_daily.py. Distinct
+        # from `validate`, which also calls report_daily but only against
+        # synthetic sample data.
+        from bot.report_daily import main as daily_main
+
+        daily_main()
         return 0
 
     if action == "research":

@@ -39,6 +39,7 @@ Profile-specific monitors:
 ```powershell
 docker compose run --rm paper-monitor
 docker compose run --rm live-monitor
+docker compose run --rm paper-options-monitor
 ```
 
 Outputs:
@@ -57,6 +58,31 @@ These summarize:
 - P&L by exit hour
 - recent closed trades
 
+## Daily Report
+
+Generate today's real (non-synthetic) daily Markdown report for a profile's
+actual runtime database:
+
+```powershell
+python -m bot.profile_runner paper daily spy
+python -m bot.profile_runner paper daily options
+```
+
+Or via docker compose:
+
+```powershell
+docker compose run --rm paper-options-daily
+```
+
+Output: `reports/daily_YYYY-MM-DD.md`. For the options profile this includes
+an "Options Positions Today" section (contract symbol, delta, DTE, and P&L
+for anything opened/closed that day), pulled from the events table
+recorded by `bot/options_engine.py`.
+
+(`docker compose run --rm validate` also calls the same report generator,
+but against synthetic sample data — use the `daily` action above for a
+report that reflects real trading activity.)
+
 ## Research
 
 Run the historical replay / walk-forward report:
@@ -65,29 +91,24 @@ Run the historical replay / walk-forward report:
 docker compose run --rm research
 ```
 
-Small-account BTC paper rehearsal:
+Options research (modeled Black-Scholes backtest — see
+`docs/strategy_options_2026-08.md` before trusting these numbers):
 
 ```powershell
-python -m bot.profile_runner paper research btc
+docker compose run --rm research-options-nvda
+docker compose run --rm research-options-tsla
 ```
-
-Both `spy` (TSLA) and `btc` research runs now use $150 starting equity to match the real account.
 
 Outputs:
 
 - `reports/research_latest.md`
 - `reports/research_latest.json`
 
-Run the parameter optimizer:
+Run the parameter optimizer (equity `spy` market only — not implemented yet
+for options):
 
 ```powershell
 docker compose run --rm optimize
-```
-
-BTC live tuning through the profile runner:
-
-```powershell
-python -m bot.profile_runner live optimize btc
 ```
 
 If you want a quicker sanity check first:
@@ -101,8 +122,6 @@ Outputs:
 
 - `reports/optimize_latest.md`
 - `reports/optimize_latest.json`
-
-The BTC live optimizer report includes the loaded live baseline, top candidates, acceptance checks, and 2x-slippage stress. Do not treat a candidate as deployable unless it is marked accepted in the report.
 
 Useful optional env controls:
 
@@ -120,11 +139,10 @@ docker compose run --rm paper
 docker compose run --rm trade
 ```
 
-BTC variants:
+NVDA/TSLA options (paper only for now — the active strategy focus):
 
 ```powershell
-docker compose run --rm paper-btc
-docker compose run --rm trade-btc
+docker compose run --rm paper-options
 ```
 
 Direct profile runner equivalents:
@@ -132,8 +150,7 @@ Direct profile runner equivalents:
 ```powershell
 python -m bot.profile_runner paper trade spy
 python -m bot.profile_runner live trade spy
-python -m bot.profile_runner paper trade btc
-python -m bot.profile_runner live trade btc
+python -m bot.profile_runner paper trade options
 ```
 
 Profile-specific validation:
@@ -141,25 +158,21 @@ Profile-specific validation:
 ```powershell
 python -m bot.profile_runner paper validate spy
 python -m bot.profile_runner live validate spy
-python -m bot.profile_runner paper validate btc
-python -m bot.profile_runner live validate btc
+python -m bot.profile_runner paper validate options
 ```
 
 Validate actual paper broker and market-data access without placing an order:
 
 ```bash
-python -m bot.profile_runner paper connectivity btc
+python -m bot.profile_runner paper connectivity options
 ```
 
+Options connectivity additionally requires options trading to be enabled on
+the Alpaca paper account first (a compliance approval in Alpaca's own
+dashboard, separate from live) — the connectivity check fails with a clear
+message if it isn't.
+
 EC2 deployment runs this connectivity check before installing cron. Invalid or expired credentials therefore fail deployment instead of producing a validation-only database that looks healthy.
-
-The paper BTC cron installation creates three jobs by default:
-
-- trading cycle every 5 minutes
-- monitor report hourly at minute 17
-- research replay daily at 00:42 ET
-
-Override these with `CRON_SCHEDULE`, `MONITOR_CRON_SCHEDULE`, and `RESEARCH_CRON_SCHEDULE` when installing cron.
 
 Current runtime defaults:
 
@@ -168,17 +181,30 @@ Current runtime defaults:
 - overnight carrying is disabled by default; override with `ALLOW_OVERNIGHT_HOLDING=true`
 - end-of-day flattening starts `5` minutes before the close by default; override with `FLATTEN_BEFORE_CLOSE_MINUTES`
 - `paper` and `trade` select separate Alpaca key pairs from `.env` when `ALPACA_PAPER_*` and `ALPACA_LIVE_*` variables are set
-- BTC paper writes runtime artifacts under `runtime/paper_btc`, BTC live under `runtime/live_btc`
-- `config/paper_btc.env` is an exact mirror of `config/live_btc.env` (same sizing, same filters) so paper fills validate the strategy that actually runs live
-- `reports/monitor_latest.md` includes 24h/7d rejection counts, near-miss entry bars, and latest filter metrics for diagnosing quiet BTC live periods
 - `config/live_spy.env` trades TSLA on hourly bars (fractional, long-only, ~60% notional) and is the recommended default live profile for a small account; see `docs/strategy_tsla_2026-08.md` for the replay evidence. Replay any change to it before relying on it live.
-- `config/paper_tsladay.env` / `config/live_tsladay.env` (market `tsladay`) is a separate, experimental same-day TSLA intraday strategy — 15m bars, bidirectional, flat by close, capped at 1 trade/day (a $150 cash account can't safely do more without risking a good-faith violation from T+1 settlement). Only ~60 trading days of backtest evidence (free intraday data is limited); see `docs/strategy_tsla_day_2026-08.md`. Run `docker compose run --rm paper-tsladay` — not recommended live yet.
+- `config/paper_options.env` / `config/live_options.env` (market `options`) trade NVDA/TSLA long calls/puts on the same trend signal — see `docs/strategy_options_2026-08.md`. Paper only for now; this is the active week-long evaluation (see the README's "One-week paper evaluation" section).
+
+## One-Week Paper-Options Evaluation
+
+The current operating plan for the options strategy:
+
+1. Run `docker compose run --rm paper-options` regularly (roughly hourly
+   during market hours, matching `TIMEFRAME_MINUTES=60` on this profile) for
+   about a week.
+2. Each day, generate and read:
+   - `docker compose run --rm paper-options-daily` → `reports/daily_YYYY-MM-DD.md`
+   - `docker compose run --rm paper-options-monitor` → `reports/monitor_latest.md`
+3. At the end of the stretch, review: trade frequency, whether selected
+   contracts actually landed near the target delta/DTE band, fill quality,
+   rejection patterns (near-misses in the monitor report), and realized P&L.
+4. Use that evidence to tune `config/paper_options.env` (contract-selection
+   or signal parameters) before running another stretch — don't move to
+   `config/live_options.env` until a paper stretch's results support it.
 
 ## Notes
 
 - Start Docker Desktop before using the commands above.
 - Keep real Alpaca keys only in the local untracked `.env`.
-- Alpaca's paper account balance still needs to be adjusted in the dashboard. The repo now mirrors that target by using `$150` as the paper research starting equity (see `RESEARCH_STARTING_EQUITY` in `config/paper_spy.env` and `config/paper_btc.env`).
 - Review `reports/monitor_latest.md` after each trading session if you want a concise explanation of what the bot did and why.
 
 ## EC2 Deploy
@@ -188,7 +214,7 @@ The repo includes a GitHub Actions workflow for EC2 deploys:
 - `workflow: .github/workflows/deploy-ec2.yml`
 - `docs: docs/github_actions_ec2.md`
 
-The deployment path syncs the repo to EC2, uploads the server `.env`, validates the selected profile, and installs a weekday cron schedule for repeated runs.
+The deployment path syncs the repo to EC2, uploads the server `.env`, validates the selected profile, and installs a weekday cron schedule for repeated runs. The deploy market is fixed at `spy` (the live equity strategy) — the options profile is currently run manually/locally during its paper evaluation, not deployed via this workflow.
 
 ## Validation Script
 
