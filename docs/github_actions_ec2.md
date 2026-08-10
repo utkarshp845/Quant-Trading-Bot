@@ -11,7 +11,10 @@ What it does:
 - uploads the runtime `.env`
 - builds the Docker image on EC2
 - runs `python -m bot.profile_runner <paper|live> validate spy` on EC2 (the deploy market is fixed at `spy`)
-- installs a cron job that runs the chosen profile once an hour in `America/New_York`
+- installs a cron schedule for the chosen profile in `America/New_York`
+- also validates and installs an independent cron schedule for the
+  `paper-options` profile (NVDA/TSLA, the active week-long paper
+  evaluation) unless `install_options_cron` is turned off
 
 ## Required GitHub Secrets
 
@@ -79,8 +82,16 @@ docker compose version
 4. Run `Deploy To EC2`.
 5. Choose `live` or `paper`.
 6. Leave `install_cron` enabled unless you want a code-only deploy.
+7. Leave `install_options_cron` enabled to also validate and schedule the
+   `paper-options` profile — this is independent of the profile/market chosen
+   above and requires options trading to already be enabled on the Alpaca
+   *paper* account (Alpaca's own dashboard approval; the deploy fails with a
+   clear message otherwise).
 
-On every later push to `master`, the workflow will auto-deploy the `live` profile.
+On every later push to `master`, the workflow will auto-deploy the `live`
+profile with both cron schedules enabled by default (`install_cron` and
+`install_options_cron` both default to `true` outside of a manual
+`workflow_dispatch` run).
 
 ## Verify on EC2
 
@@ -98,6 +109,9 @@ Check runtime output on the server:
 ls -la /home/ubuntu/trading-bot/logs
 tail -n 50 /home/ubuntu/trading-bot/logs/live_cron.log
 tail -n 50 /home/ubuntu/trading-bot/logs/paper_cron.log
+tail -n 50 /home/ubuntu/trading-bot/logs/paper_options_cron.log
+tail -n 50 /home/ubuntu/trading-bot/logs/paper_options_monitor_cron.log
+tail -n 50 /home/ubuntu/trading-bot/logs/paper_options_daily_cron.log
 ```
 
 If you want to run one profile manually on the server after a deploy:
@@ -106,23 +120,32 @@ If you want to run one profile manually on the server after a deploy:
 cd /home/ubuntu/trading-bot
 docker compose run --rm trade
 docker compose run --rm paper
+docker compose run --rm paper-options
 ```
 
-If you want a different schedule, set `CRON_SCHEDULE` before running `deploy/ec2/install_cron.sh`, or edit the script default.
+If you want a different schedule, set `CRON_SCHEDULE` / `MONITOR_CRON_SCHEDULE` / `RESEARCH_CRON_SCHEDULE` (main profile) or `OPTIONS_CRON_SCHEDULE` / `OPTIONS_MONITOR_CRON_SCHEDULE` / `OPTIONS_DAILY_CRON_SCHEDULE` (options) before running `deploy/ec2/install_cron.sh`, or edit the script defaults.
 
-Current default schedule:
+Current default schedules (`America/New_York`, every day):
 
-- once an hour, 5 minutes past the hour (`5 * * * *`)
-- every day
-- `America/New_York` timezone
+| Job | Schedule | Env override |
+|---|---|---|
+| Main profile trade cycle | every 5 minutes | `CRON_SCHEDULE` |
+| Main profile monitor report | `:17` past the hour | `MONITOR_CRON_SCHEDULE` |
+| Main profile research report (paper only) | `00:42` | `RESEARCH_CRON_SCHEDULE` |
+| `paper-options` trade cycle | `:20` past the hour | `OPTIONS_CRON_SCHEDULE` |
+| `paper-options` monitor report | `:35` past the hour | `OPTIONS_MONITOR_CRON_SCHEDULE` |
+| `paper-options` daily report | `23:55` | `OPTIONS_DAILY_CRON_SCHEDULE` |
 
 The deploy market is fixed at `spy` (`SYMBOL=TSLA`, see
 `config/live_spy.env`), which trades hourly bars during the equity session —
 the bot itself checks market hours and holds outside them, so running the
 cron job around the clock is harmless, just a no-op most of the day. The
-options profile (`config/paper_options.env` / `config/live_options.env`) is
-currently run manually/locally during its paper evaluation rather than
-through this workflow. If you change a profile's `TIMEFRAME_MINUTES`, update
-`CRON_SCHEDULE` to match — running the bot much more often than its bar
+`paper-options` schedule is installed independently (its own cron job
+marker), so a normal `live`/`spy` deploy doesn't disturb it, and it survives
+across deploys unless `install_options_cron` is explicitly turned off. If
+you change a profile's `TIMEFRAME_MINUTES`, update its corresponding
+`*_CRON_SCHEDULE` to match — running the bot much more often than its bar
 interval just wastes API calls and log lines, since cooldown and
-pending-order checks will no-op the extra invocations.
+pending-order checks will no-op the extra invocations (options-chain lookups
+are a heavier call than an equity bar fetch, so this matters more for
+`paper-options` than for the equity schedule).
