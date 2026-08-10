@@ -8,6 +8,7 @@ install_cron="${INSTALL_CRON:-true}"
 run_after_deploy="${RUN_AFTER_DEPLOY:-true}"
 docker_bin="${DOCKER_BIN:-$(command -v docker || true)}"
 market="${DEPLOY_MARKET:-spy}"
+install_options_cron="${INSTALL_OPTIONS_CRON:-true}"
 
 case "$profile" in
   live|paper) ;;
@@ -44,6 +45,18 @@ echo "Running ${profile} validation for ${market}"
 
 echo "Checking ${profile} broker and market-data connectivity for ${market}"
 "$docker_bin" compose run --rm --entrypoint python "$compose_service" -m bot.profile_runner "$profile" connectivity "$market"
+
+if [[ "$install_options_cron" == "true" || "$install_options_cron" == "1" ]]; then
+  # The options profile is always paper (not the profile/market pair being
+  # deployed above) — see README.md's "One-week paper evaluation" section.
+  # Validate and check connectivity for it too before scheduling it,
+  # mirroring the checks above.
+  echo "Running paper validation for options"
+  "$docker_bin" compose run --rm --entrypoint python paper-options -m bot.profile_runner paper validate options
+
+  echo "Checking paper broker and options market-data connectivity for options"
+  "$docker_bin" compose run --rm --entrypoint python paper-options -m bot.profile_runner paper connectivity options
+fi
 
 if [[ "$install_cron" == "true" || "$install_cron" == "1" ]]; then
   echo "Installing cron schedule for ${profile}"

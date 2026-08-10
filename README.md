@@ -322,13 +322,16 @@ The optimizer compares candidates against the loaded live baseline over the same
 
 The bot deploys to a plain EC2 instance via GitHub Actions: the workflow at
 `.github/workflows/deploy-ec2.yml` rsyncs the repo over SSH, builds the
-Docker image on the instance, and installs a cron job — no container
+Docker image on the instance, and installs cron schedules — no container
 registry or AWS IAM setup involved. Full setup steps, required secrets, and
 verification commands are in `docs/github_actions_ec2.md`.
 
 It triggers automatically on pushes to `master`, or manually from the
 Actions tab with a chosen profile (`live`/`paper`); the deploy market is
-fixed at `spy` (the live equity strategy).
+fixed at `spy` (the live equity strategy). Every deploy also validates and
+schedules the `paper-options` profile on its own independent cron (default
+on; `install_options_cron: false` on a manual dispatch to skip it) — that's
+what keeps the week-long NVDA/TSLA paper evaluation running unattended.
 
 ### Security Notes
 
@@ -417,17 +420,18 @@ stretch first.
 
 The current plan: run `paper-options` for about a week to gather fills,
 contract-selection quality, and P&L before tuning anything or considering
-live capital. Suggested daily routine:
+live capital. This now runs **unattended on EC2** — the deploy workflow
+installs an independent cron schedule for it (trade hourly, monitor hourly,
+daily report once a day) alongside whatever profile/market it's deploying
+for the equity strategy, see [Deployment](#deployment) and
+`docs/github_actions_ec2.md`. No need to trigger cycles by hand.
+
+To run it manually instead (e.g. to smoke-test locally with working paper
+keys, before or between EC2 deploys):
 
 ```bash
-# Run the trading cycle (schedule this, e.g. hourly during market hours —
-# TIMEFRAME_MINUTES=60 on this profile)
 docker compose run --rm paper-options
-
-# Generate today's real (non-synthetic) daily report
 docker compose run --rm paper-options-daily
-
-# Generate the monitor snapshot (rejections, near-misses, open position state)
 docker compose run --rm paper-options-monitor
 ```
 

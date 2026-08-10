@@ -186,14 +186,19 @@ Current runtime defaults:
 
 ## One-Week Paper-Options Evaluation
 
-The current operating plan for the options strategy:
+`paper-options` now runs unattended on EC2 via its own cron schedule,
+installed by `deploy/ec2/deploy_remote.sh` / `deploy/ec2/install_cron.sh`
+(see `docs/github_actions_ec2.md`) — no need to trigger cycles by hand once
+deployed. The operating plan:
 
-1. Run `docker compose run --rm paper-options` regularly (roughly hourly
-   during market hours, matching `TIMEFRAME_MINUTES=60` on this profile) for
-   about a week.
-2. Each day, generate and read:
-   - `docker compose run --rm paper-options-daily` → `reports/daily_YYYY-MM-DD.md`
-   - `docker compose run --rm paper-options-monitor` → `reports/monitor_latest.md`
+1. Confirm the schedule is installed: `crontab -l` on EC2 should show three
+   `# trading-bot-paper-options` entries (trade, monitor, daily report).
+2. Each day, read the reports it's already generating on EC2:
+   - `reports/daily_YYYY-MM-DD.md` (written once daily at 23:55 ET)
+   - `reports/monitor_latest.md` (refreshed hourly)
+   - Pull them locally with `scp`, or `docker compose run --rm
+     paper-options-daily` / `paper-options-monitor` to regenerate on demand
+     (locally, this needs working paper Alpaca keys in your `.env`).
 3. At the end of the stretch, review: trade frequency, whether selected
    contracts actually landed near the target delta/DTE band, fill quality,
    rejection patterns (near-misses in the monitor report), and realized P&L.
@@ -214,7 +219,7 @@ The repo includes a GitHub Actions workflow for EC2 deploys:
 - `workflow: .github/workflows/deploy-ec2.yml`
 - `docs: docs/github_actions_ec2.md`
 
-The deployment path syncs the repo to EC2, uploads the server `.env`, validates the selected profile, and installs a weekday cron schedule for repeated runs. The deploy market is fixed at `spy` (the live equity strategy) — the options profile is currently run manually/locally during its paper evaluation, not deployed via this workflow.
+The deployment path syncs the repo to EC2, uploads the server `.env`, validates the selected profile, and installs a cron schedule for repeated runs. The deploy market is fixed at `spy` (the live equity strategy). It also validates and installs an **independent** cron schedule for `paper-options` (NVDA/TSLA, the active week-long paper evaluation) by default — see `docs/github_actions_ec2.md` for the schedule and how to opt out (`install_options_cron: false` on a manual dispatch).
 
 ## Validation Script
 
