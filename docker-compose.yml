@@ -14,26 +14,6 @@ services:
     <<: *bot
     command: ["python", "-m", "bot.profile_runner", "paper", "trade", "spy"]
 
-  trade-btc:
-    <<: *bot
-    command: ["python", "-m", "bot.profile_runner", "live", "trade", "btc"]
-
-  paper-btc:
-    <<: *bot
-    command: ["python", "-m", "bot.profile_runner", "paper", "trade", "btc"]
-
-  # Experimental same-day TSLA intraday variant - see config/live_tsladay.env
-  # for why this isn't wired up as a default deploy target yet (only ~60
-  # trading days of backtest evidence vs the primary "spy" profile's 2.9yr).
-  # Run paper-tsladay for a real stretch before ever using trade-tsladay.
-  trade-tsladay:
-    <<: *bot
-    command: ["python", "-m", "bot.profile_runner", "live", "trade", "tsladay"]
-
-  paper-tsladay:
-    <<: *bot
-    command: ["python", "-m", "bot.profile_runner", "paper", "trade", "tsladay"]
-
   monitor:
     <<: *bot
     command: ["python", "-m", "bot.profile_runner", "live", "monitor", "spy"]
@@ -46,18 +26,10 @@ services:
     <<: *bot
     command: ["python", "-m", "bot.profile_runner", "paper", "monitor", "spy"]
 
-  btc-monitor:
-    <<: *bot
-    command: ["python", "-m", "bot.profile_runner", "live", "monitor", "btc"]
-
-  paper-tsladay-monitor:
-    <<: *bot
-    command: ["python", "-m", "bot.profile_runner", "paper", "monitor", "tsladay"]
-
   # NVDA/TSLA long calls/puts on the existing trend signal — see
   # config/paper_options.env and docs/strategy_options_2026-08.md. Paper
-  # only for now: run this for a real stretch before ever considering
-  # trade-options live, the same standard already applied to tsladay.
+  # only for now: run this for a real stretch (currently the active
+  # evaluation window) before ever considering trade-options live.
   # Requires options trading enabled on the Alpaca paper account first
   # (Alpaca's own dashboard — separate approval from live).
   paper-options:
@@ -73,6 +45,13 @@ services:
   paper-options-monitor:
     <<: *bot
     command: ["python", "-m", "bot.profile_runner", "paper", "monitor", "options"]
+
+  # Daily Markdown report (reports/daily_YYYY-MM-DD.md) built from the real
+  # paper-options runtime database — run this once a day during the
+  # week-long paper evaluation to track fills, contract selection, and P&L.
+  paper-options-daily:
+    <<: *bot
+    command: ["python", "-m", "bot.profile_runner", "paper", "daily", "options"]
 
   # bot/options_research.py researches one SYMBOL per run (default NVDA, set
   # by config/*_options.env) — run both services to get a report for each
@@ -92,10 +71,6 @@ services:
   research:
     <<: *bot
     command: ["python", "-m", "bot.profile_runner", "live", "research", "spy"]
-
-  research-btc:
-    <<: *bot
-    command: ["python", "-m", "bot.profile_runner", "live", "research", "btc"]
 
   optimize:
     <<: *bot

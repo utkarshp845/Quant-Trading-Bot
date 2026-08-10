@@ -10,7 +10,7 @@ What it does:
 - syncs the repo to the server
 - uploads the runtime `.env`
 - builds the Docker image on EC2
-- runs `python -m bot.profile_runner <paper|live> validate spy` on EC2 (or `btc` if `DEPLOY_MARKET=btc`)
+- runs `python -m bot.profile_runner <paper|live> validate spy` on EC2 (the deploy market is fixed at `spy`)
 - installs a cron job that runs the chosen profile once an hour in `America/New_York`
 
 ## Required GitHub Secrets
@@ -116,13 +116,13 @@ Current default schedule:
 - every day
 - `America/New_York` timezone
 
-The default deploy market is `spy` (`SYMBOL=TSLA`, see `config/live_spy.env`),
-which trades hourly bars during the equity session — the bot itself checks
-market hours and holds outside them, so running the cron job around the
-clock is harmless, just a no-op most of the day. The `btc` market
-(`config/live_btc.env`) also trades hourly bars now, so the same schedule
-applies; set `DEPLOY_MARKET=btc` on the workflow dispatch to deploy it
-instead. If you change a profile's `TIMEFRAME_MINUTES`, update
+The deploy market is fixed at `spy` (`SYMBOL=TSLA`, see
+`config/live_spy.env`), which trades hourly bars during the equity session —
+the bot itself checks market hours and holds outside them, so running the
+cron job around the clock is harmless, just a no-op most of the day. The
+options profile (`config/paper_options.env` / `config/live_options.env`) is
+currently run manually/locally during its paper evaluation rather than
+through this workflow. If you change a profile's `TIMEFRAME_MINUTES`, update
 `CRON_SCHEDULE` to match — running the bot much more often than its bar
 interval just wastes API calls and log lines, since cooldown and
 pending-order checks will no-op the extra invocations.

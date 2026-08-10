@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import sqlite3
 from datetime import datetime
@@ -11,6 +12,13 @@ from zoneinfo import ZoneInfo
 
 from bot.metrics import add_condition_buckets, best_worst_conditions, closed_trade_summary, load_table_df, max_drawdown, summarize_by_group
 from bot.paths import DATA_DIR, LOGS_DIR, REPORTS_DIR, ensure_runtime_dirs
+
+
+OPTION_EVENT_TYPES = ["option_position_opened", "option_position_closed"]
+
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    return os.getenv(name, str(default)).strip().lower() in ("1", "true", "yes", "y", "on")
 
 
 ET = ZoneInfo("America/New_York")
@@ -117,10 +125,51 @@ def _count_reason_matches(df: pd.DataFrame, target_reasons: list[str]) -> dict[s
     return counts
 
 
+def _options_event_lines(events: pd.DataFrame, report_date_et: str) -> list[str]:
+    if events.empty or "ts" not in events.columns:
+        return ["- No option position activity today."]
+
+    day_events = events[events["event_type"].isin(OPTION_EVENT_TYPES)].copy()
+    day_events["ts"] = _to_dt_utc(day_events["ts"])
+    day_events = day_events.dropna(subset=["ts"])
+    day_events["ts_et"] = day_events["ts"].dt.tz_convert(ET)
+    day_events = day_events[day_events["ts_et"].dt.date.astype(str) == report_date_et].sort_values("ts")
+
+    if day_events.empty:
+        return ["- No option position activity today."]
+
+    rendered: list[str] = []
+    for row in day_events.itertuples():
+        try:
+            payload = json.loads(row.payload_json) if row.payload_json else {}
+        except (TypeError, ValueError, json.JSONDecodeError):
+            payload = {}
+        ts_str = row.ts_et.strftime("%H:%M:%S")
+        if row.event_type == "option_position_opened":
+            rendered.append(
+                f"- {ts_str} ET **opened** {row.symbol} — contract={payload.get('contract_symbol', 'n/a')} "
+                f"delta={payload.get('delta', 'n/a')} dte={payload.get('dte', 'n/a')}"
+            )
+        else:
+            pnl = payload.get("pnl")
+            pnl_str = _fmt_money(pnl) if pnl is not None else "n/a"
+            rendered.append(
+                f"- {ts_str} ET **closed** {row.symbol} — contract={payload.get('contract_symbol', 'n/a')} "
+                f"reason={payload.get('exit_reason', 'n/a')} pnl={pnl_str}"
+            )
+    return rendered
+
+
 def main():
     load_dotenv()
     ensure_runtime_dirs()
-    symbol = os.getenv("SYMBOL", "SPY").strip().upper()
+    is_options = _env_bool("IS_OPTIONS")
+    if is_options:
+        symbol = ", ".join(
+            s.strip().upper() for s in os.getenv("OPTION_SYMBOLS", "NVDA,TSLA").split(",") if s.strip()
+        )
+    else:
+        symbol = os.getenv("SYMBOL", "SPY").strip().upper()
 
     equity_path = LOGS_DIR / "equity.csv"
     db_path = DATA_DIR / "bot.db"
@@ -131,12 +180,15 @@ def main():
     runs = load_table_df(conn, "runs") if conn is not None else pd.DataFrame()
     orders = load_table_df(conn, "orders") if conn is not None else pd.DataFrame()
     closed = load_table_df(conn, "closed_trades") if conn is not None else pd.DataFrame()
+    events = load_table_df(conn, "events") if conn is not None else pd.DataFrame()
 
     now_et = datetime.now(ET)
     report_date_et = now_et.date().isoformat()
     out_path = REPORTS_DIR / f"daily_{report_date_et}.md"
 
     lines: list[str] = [f"# Daily Report ({report_date_et} ET)", "", f"**Symbol:** {symbol}"]
+    if is_options:
+        lines.append("**Strategy:** NVDA/TSLA long calls/puts (options)")
 
     strategy_version = os.getenv("STRATEGY_VERSION", "").strip() or None
     if not runs.empty and "ts" in runs.columns:
@@ -270,6 +322,11 @@ def main():
             f"- Profit factor: {_fmt_num(overall_summary['profit_factor'])}",
         ]
     )
+
+    if is_options:
+        lines.append("")
+        lines.append("## Options Positions Today")
+        lines.extend(_options_event_lines(events, report_date_et))
 
     if not today_closed.empty:
         lines.append("")

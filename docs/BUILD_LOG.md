@@ -6,6 +6,42 @@ possible), and what to watch after deploying it.
 
 ---
 
+## 2026-08-10 — Retired BTC and tsladay; options is now the active strategy focus
+
+**What:** Removed the BTC/USD profile (`config/paper_btc.env`,
+`config/live_btc.env`, the `btc` market in `bot/profile.py` including
+`LIVE_BTC_SAFETY_ENV`, and the associated docker-compose services, CI steps,
+and tests) and the experimental same-day TSLA intraday profile (`tsladay`,
+same treatment) from the active codebase. Both are kept as historical record
+in `docs/strategy_revamp_2026-07.md` and `docs/strategy_tsla_day_2026-08.md`
+(now flagged retired at the top of each). The live TSLA equity strategy
+(`spy` market, `config/live_spy.env`) is unaffected and keeps running live.
+
+**Why:** The user is starting a week-long paper-only evaluation of the
+NVDA/TSLA long-calls/puts options strategy (`docs/strategy_options_2026-08.md`)
+and asked to remove strategies that are no longer the focus rather than
+carry them forward as unused surface area.
+
+**Also added — daily reporting for the options profile:**
+- New `daily` action in `bot/profile_runner.py`, wired to
+  `bot/report_daily.py`, so a real (non-synthetic) daily report can be
+  generated for any profile/market on demand
+  (`python -m bot.profile_runner paper daily options`, or
+  `docker compose run --rm paper-options-daily`). Previously `report_daily`
+  was only invoked internally by `bot/validate_runtime.py` against synthetic
+  sample data.
+- `bot/report_daily.py` now labels the report with `OPTION_SYMBOLS` (not
+  just the single `SYMBOL` env) and adds an "Options Positions Today"
+  section — contract symbol, delta, DTE, and P&L for anything opened/closed
+  that day — sourced from the `option_position_opened` /
+  `option_position_closed` events `bot/options_engine.py` already records.
+
+**What to watch:** `.github/workflows/ci.yml` now validates the `paper` and
+`live` `options` profiles instead of `btc`; `docs/github_actions_ec2.md` /
+`deploy-ec2.yml` are unchanged (deploy market stays fixed at `spy`) since the
+options profile is still run manually during its paper evaluation, not
+deployed via that workflow.
+
 ## 2026-08-05 — Fixed hourly-bar fetch crash; switched equity profile QQQ → TSLA
 
 **Bug fix:** `bot/broker_alpaca.py::get_historical_bars` built Alpaca's

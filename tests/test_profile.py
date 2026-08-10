@@ -45,149 +45,50 @@ class ProfileTests(unittest.TestCase):
             os.environ.clear()
             os.environ.update(original)
 
-    def test_paper_btc_profile_enables_crypto_defaults(self):
+    def test_paper_options_profile_enables_options_defaults(self):
         original = dict(os.environ)
         try:
             os.environ.pop("BOT_DATA_DIR", None)
             os.environ.pop("BOT_LOGS_DIR", None)
             os.environ.pop("BOT_REPORTS_DIR", None)
-            load_profile("paper", "btc")
+            load_profile("paper", "options")
             self.assertEqual(os.environ["ALPACA_PAPER"], "true")
-            self.assertEqual(os.environ["SYMBOL"], "BTC/USD")
-            self.assertEqual(os.environ["IS_CRYPTO"], "true")
+            self.assertEqual(os.environ["SYMBOL"], "NVDA")
+            self.assertEqual(os.environ["OPTION_SYMBOLS"], "NVDA,TSLA")
+            self.assertEqual(os.environ["IS_OPTIONS"], "true")
+            self.assertEqual(os.environ["IS_CRYPTO"], "false")
+            self.assertEqual(os.environ["ALLOW_SHORTS"], "true")
             self.assertEqual(os.environ["ALLOW_OVERNIGHT_HOLDING"], "true")
             self.assertEqual(os.environ["FLATTEN_BEFORE_CLOSE_MINUTES"], "0")
-            self.assertEqual(os.environ["STRATEGY_VERSION"], "v3-paper-btc-exploration")
-            self.assertEqual(os.environ["MAX_TRADES_PER_DAY"], "8")
-            self.assertEqual(os.environ["COOLDOWN_BARS"], "1")
-            self.assertEqual(os.environ["ATR_RISK_PER_TRADE_PCT"], "0.01")
-            self.assertEqual(os.environ["TARGET_POSITION_NOTIONAL_PCT"], "0.25")
-            self.assertIn("paper_btc", os.environ["BOT_DATA_DIR"])
+            self.assertIn("paper_options", os.environ["BOT_DATA_DIR"])
         finally:
             os.environ.clear()
             os.environ.update(original)
 
-    def test_hyphenated_profile_name_selects_btc_market(self):
+    def test_live_options_profile_disables_paper_mode(self):
         original = dict(os.environ)
         try:
             os.environ.pop("BOT_DATA_DIR", None)
             os.environ.pop("BOT_LOGS_DIR", None)
             os.environ.pop("BOT_REPORTS_DIR", None)
-            load_profile("live-btc")
+            load_profile("live", "options")
             self.assertEqual(os.environ["ALPACA_PAPER"], "false")
-            self.assertEqual(os.environ["SYMBOL"], "BTC/USD")
-            self.assertIn("live_btc", os.environ["BOT_DATA_DIR"])
+            self.assertEqual(os.environ["SYMBOL"], "NVDA")
+            self.assertEqual(os.environ["OPTION_SYMBOLS"], "NVDA,TSLA")
+            self.assertEqual(os.environ["IS_OPTIONS"], "true")
+            self.assertIn("live_options", os.environ["BOT_DATA_DIR"])
         finally:
             os.environ.clear()
             os.environ.update(original)
 
-    def test_live_btc_profile_uses_small_live_account_risk_limits(self):
+    def test_unsupported_market_raises(self):
         original = dict(os.environ)
         try:
-            os.environ.pop("BOT_DATA_DIR", None)
-            os.environ.pop("BOT_LOGS_DIR", None)
-            os.environ.pop("BOT_REPORTS_DIR", None)
-            load_profile("live", "btc")
-            self.assertEqual(os.environ["ALPACA_PAPER"], "false")
-            self.assertEqual(os.environ["SYMBOL"], "BTC/USD")
-            self.assertEqual(os.environ["POSITION_SIZING_MODE"], "notional_cap")
-            self.assertEqual(os.environ["TARGET_POSITION_NOTIONAL_PCT"], "0.90")
-            self.assertEqual(os.environ["MAX_POSITION_NOTIONAL_PCT"], "0.95")
-            self.assertEqual(os.environ["MAX_DAILY_LOSS"], "6")
-            self.assertEqual(os.environ["MAX_CONSECUTIVE_LOSSES"], "3")
-            self.assertEqual(os.environ["MAX_TRADES_PER_DAY"], "2")
-            self.assertIn("live_btc", str(paths_module.DATA_DIR))
+            with self.assertRaises(ValueError):
+                load_profile("paper", "btc")
         finally:
             os.environ.clear()
             os.environ.update(original)
-
-    def test_live_btc_profile_env_contract_matches_config_file(self):
-        original = dict(os.environ)
-        try:
-            resolved = validate_profile_env("live", "btc")
-            self.assertEqual(resolved["SYMBOL"], "BTC/USD")
-            self.assertEqual(resolved["MAX_DAILY_LOSS"], "6")
-            self.assertEqual(resolved["MAX_TRADES_PER_DAY"], "2")
-        finally:
-            os.environ.clear()
-            os.environ.update(original)
-
-    def test_paper_tsladay_profile_enables_same_day_flatten_defaults(self):
-        original = dict(os.environ)
-        try:
-            os.environ.pop("BOT_DATA_DIR", None)
-            os.environ.pop("BOT_LOGS_DIR", None)
-            os.environ.pop("BOT_REPORTS_DIR", None)
-            load_profile("paper", "tsladay")
-            self.assertEqual(os.environ["ALPACA_PAPER"], "true")
-            self.assertEqual(os.environ["SYMBOL"], "TSLA")
-            self.assertEqual(os.environ["IS_CRYPTO"], "false")
-            self.assertEqual(os.environ["ALLOW_OVERNIGHT_HOLDING"], "false")
-            self.assertEqual(os.environ["FLATTEN_BEFORE_CLOSE_MINUTES"], "15")
-            self.assertEqual(os.environ["MAX_TRADES_PER_DAY"], "1")
-            self.assertEqual(os.environ["ALLOW_SHORTS"], "true")
-            self.assertEqual(os.environ["TIMEFRAME_MINUTES"], "15")
-            self.assertIn("paper_tsladay", os.environ["BOT_DATA_DIR"])
-        finally:
-            os.environ.clear()
-            os.environ.update(original)
-
-    def test_live_tsladay_profile_disables_paper_mode(self):
-        original = dict(os.environ)
-        try:
-            os.environ.pop("BOT_DATA_DIR", None)
-            os.environ.pop("BOT_LOGS_DIR", None)
-            os.environ.pop("BOT_REPORTS_DIR", None)
-            load_profile("live", "tsladay")
-            self.assertEqual(os.environ["ALPACA_PAPER"], "false")
-            self.assertEqual(os.environ["SYMBOL"], "TSLA")
-            self.assertEqual(os.environ["MAX_TRADES_PER_DAY"], "1")
-            self.assertIn("live_tsladay", os.environ["BOT_DATA_DIR"])
-        finally:
-            os.environ.clear()
-            os.environ.update(original)
-
-    def test_live_tsladay_profile_env_contract_matches_config_file(self):
-        original = dict(os.environ)
-        try:
-            resolved = validate_profile_env("live", "tsladay")
-            self.assertEqual(resolved["SYMBOL"], "TSLA")
-            self.assertEqual(resolved["MAX_TRADES_PER_DAY"], "1")
-        finally:
-            os.environ.clear()
-            os.environ.update(original)
-
-    def test_live_btc_profile_env_can_override_safety_defaults(self):
-        original = dict(os.environ)
-        with tempfile.TemporaryDirectory() as tmpdir:
-            root = Path(tmpdir)
-            (root / "config").mkdir(parents=True, exist_ok=True)
-            (root / ".env").write_text(
-                "SYMBOL=SPY\n"
-                "IS_CRYPTO=false\n"
-                "MAX_DAILY_LOSS=100\n",
-                encoding="utf-8",
-            )
-            (root / "config" / "live_btc.env").write_text(
-                "SYMBOL=BTC/USD\n"
-                "IS_CRYPTO=true\n"
-                "MAX_DAILY_LOSS=5\n"
-                "MAX_TRADES_PER_DAY=4\n",
-                encoding="utf-8",
-            )
-            try:
-                os.environ.pop("SYMBOL", None)
-                os.environ.pop("IS_CRYPTO", None)
-                os.environ.pop("MAX_DAILY_LOSS", None)
-                os.environ.pop("MAX_TRADES_PER_DAY", None)
-                with patch.object(profile_module, "APP_ROOT", root):
-                    load_profile("live", "btc")
-                self.assertEqual(os.environ["MAX_DAILY_LOSS"], "5")
-                self.assertEqual(os.environ["MAX_TRADES_PER_DAY"], "4")
-                self.assertEqual(os.environ["POSITION_SIZING_MODE"], "atr_risk")
-            finally:
-                os.environ.clear()
-                os.environ.update(original)
 
     def test_profile_env_overrides_base_env(self):
         original = dict(os.environ)
@@ -212,48 +113,6 @@ class ProfileTests(unittest.TestCase):
             finally:
                 os.environ.clear()
                 os.environ.update(original)
-
-    def test_btc_profile_env_overrides_base_env(self):
-        original = dict(os.environ)
-        with tempfile.TemporaryDirectory() as tmpdir:
-            root = Path(tmpdir)
-            (root / "config").mkdir(parents=True, exist_ok=True)
-            (root / ".env").write_text("SYMBOL=SPY\nIS_CRYPTO=false\n", encoding="utf-8")
-            (root / "config" / "paper_btc.env").write_text(
-                "SYMBOL=BTC/USD\nIS_CRYPTO=true\n",
-                encoding="utf-8",
-            )
-            try:
-                os.environ.pop("BOT_DATA_DIR", None)
-                os.environ.pop("BOT_LOGS_DIR", None)
-                os.environ.pop("BOT_REPORTS_DIR", None)
-                os.environ.pop("SYMBOL", None)
-                os.environ.pop("IS_CRYPTO", None)
-                with patch.object(profile_module, "APP_ROOT", root):
-                    load_profile("paper", "btc")
-                self.assertEqual(os.environ["SYMBOL"], "BTC/USD")
-                self.assertEqual(os.environ["IS_CRYPTO"], "true")
-            finally:
-                os.environ.clear()
-                os.environ.update(original)
-
-    def test_btc_profile_overrides_existing_spy_process_env(self):
-        original = dict(os.environ)
-        try:
-            os.environ["SYMBOL"] = "SPY"
-            os.environ["IS_CRYPTO"] = "false"
-            os.environ["POSITION_SIZING_MODE"] = "fixed"
-            os.environ["ENABLE_STALE_BAR_CHECK"] = "false"
-            os.environ["BOT_DATA_DIR"] = "/tmp/trading-bot/live/data"
-            load_profile("live", "btc")
-            self.assertEqual(os.environ["SYMBOL"], "BTC/USD")
-            self.assertEqual(os.environ["IS_CRYPTO"], "true")
-            self.assertEqual(os.environ["POSITION_SIZING_MODE"], "notional_cap")
-            self.assertEqual(os.environ["ENABLE_STALE_BAR_CHECK"], "true")
-            self.assertIn("live_btc", os.environ["BOT_DATA_DIR"])
-        finally:
-            os.environ.clear()
-            os.environ.update(original)
 
     def test_profile_env_symbol_and_session_flags_win_over_market_defaults(self):
         original = dict(os.environ)
@@ -298,34 +157,14 @@ class ProfileTests(unittest.TestCase):
                 os.environ.clear()
                 os.environ.update(original)
 
-    def test_live_btc_safety_defaults_apply_when_profile_env_file_is_missing(self):
+    def test_spy_profile_env_contract_matches_config_file(self):
         original = dict(os.environ)
-        with tempfile.TemporaryDirectory() as tmpdir:
-            root = Path(tmpdir)
-            (root / ".env").write_text(
-                "SYMBOL=SPY\n"
-                "IS_CRYPTO=false\n"
-                "POSITION_SIZING_MODE=fixed\n"
-                "ENABLE_STALE_BAR_CHECK=false\n"
-                "MAX_DAILY_LOSS=100\n",
-                encoding="utf-8",
-            )
-            try:
-                os.environ.pop("SYMBOL", None)
-                os.environ.pop("IS_CRYPTO", None)
-                os.environ.pop("POSITION_SIZING_MODE", None)
-                os.environ.pop("ENABLE_STALE_BAR_CHECK", None)
-                os.environ.pop("MAX_DAILY_LOSS", None)
-                with patch.object(profile_module, "APP_ROOT", root):
-                    load_profile("live", "btc")
-                self.assertEqual(os.environ["SYMBOL"], "BTC/USD")
-                self.assertEqual(os.environ["IS_CRYPTO"], "true")
-                self.assertEqual(os.environ["POSITION_SIZING_MODE"], "atr_risk")
-                self.assertEqual(os.environ["ENABLE_STALE_BAR_CHECK"], "true")
-                self.assertEqual(os.environ["MAX_DAILY_LOSS"], "3")
-            finally:
-                os.environ.clear()
-                os.environ.update(original)
+        try:
+            resolved = validate_profile_env("live", "spy")
+            self.assertEqual(resolved["SYMBOL"], "TSLA")
+        finally:
+            os.environ.clear()
+            os.environ.update(original)
 
 
 if __name__ == "__main__":

@@ -77,9 +77,8 @@ def _parse_grid(raw: str | None, fallback: list[str]) -> list[str]:
 
 
 def _candidate_grid() -> dict[str, list[str]]:
-    is_btc = os.getenv("SYMBOL", "").strip().upper() == "BTC/USD" or os.getenv("BOT_MARKET", "").strip().lower() == "btc"
-    atr_defaults = ["0.015"] if is_btc else ["0.0030", "0.0035", "0.0045"]
-    long_atr_defaults = ["0.012"] if is_btc else ["0.0025", "0.0030", "0.0035"]
+    atr_defaults = ["0.0030", "0.0035", "0.0045"]
+    long_atr_defaults = ["0.0025", "0.0030", "0.0035"]
     return {
         # Long-only by default (swing configs hold multi-day and don't want
         # short exposure to an overnight gap). A same-day flatten-by-close

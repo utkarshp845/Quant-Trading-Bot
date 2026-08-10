@@ -26,7 +26,6 @@ predict future results. See [Disclaimer](#disclaimer).
 - [Run / Validate / Monitor](#run)
 - [Deployment](#deployment)
 - [Risk Controls](#risk-controls)
-- [Crypto (BTC/USD)](#crypto-btcusd)
 - [Options (NVDA/TSLA)](#options-nvdatsla)
 - [Small Equity Accounts](#small-equity-accounts)
 - [Docs](#docs)
@@ -42,10 +41,11 @@ audited after the fact instead of trusted blindly.
 
 It currently:
 
-- pulls bars from Alpaca for stocks (IEX feed) or crypto (CryptoHistoricalDataClient)
+- pulls bars from Alpaca for stocks (IEX feed) and options underlyings
 - generates trend-following signals on a configurable timeframe
 - applies layered risk checks before entering trades (daily drawdown, consecutive losses, cooldown, hard stop)
 - manages exits via trailing stop, hard stop, breakeven stop, profit lock, time stop, and trend reversal
+- trades that same signal as either equity shares or long calls/puts (see [Options (NVDA/TSLA)](#options-nvdatsla)) — the active focus right now is a week-long NVDA/TSLA options paper-trading evaluation
 - records runs, orders, events, and closed trades in SQLite
 - writes daily and monitoring reports to `reports/`
 
@@ -96,9 +96,18 @@ strategy** sized for a small account: long-only, fractional, ~60% notional
 per position, a daily-EMA regime filter, and trailing exits that hold
 winning trends for days rather than minutes. Position sizing is trimmed
 relative to the earlier QQQ profile because TSLA's hourly volatility runs
-~3x QQQ's. A defensive BTC/USD profile is also available — it only trades
-confirmed multi-hour uptrends and is designed to sit out downtrends entirely
-rather than force trades.
+~3x QQQ's.
+
+**Active focus right now: NVDA/TSLA options, paper only.** The same trend
+signal is also expressed as long calls/puts (`config/paper_options.env`) —
+see [Options (NVDA/TSLA)](#options-nvdatsla). It's running paper-only for a
+real stretch (about a week to start) to gather fills, contract-selection
+quality, and P&L before any tuning or a live decision. Two earlier
+strategies — a defensive BTC/USD profile and an experimental same-day TSLA
+intraday variant (`tsladay`) — were retired and removed from the active
+codebase; see [`docs/BUILD_LOG.md`](docs/BUILD_LOG.md) for why, and
+`docs/strategy_revamp_2026-07.md` / `docs/strategy_tsla_day_2026-08.md` for
+the retired evidence.
 
 Replay results, `$150` starting capital, real historical bars, realistic
 slippage assumptions (see the strategy docs for methodology — **these are
@@ -108,9 +117,15 @@ backtest results, not live account performance**):
 |---|---|---|---|---|---|
 | TSLA hourly trend (live default) | 2023-09 → 2026-08 (~2.9 yrs) | +$33.0 (+22%) | 1.56 | 9.4% | 28 (~9/yr) |
 | *(retired)* QQQ hourly trend | 2023-08 → 2026-07 (~3 yrs) | +$55.3 (+37%) | 1.76 | 6.7% | 74 (~2/mo) |
-| BTC hourly, strict uptrend gate | 2025-26 (bear year, BTC −46%) | $0.00 | — | 0% | 0 (stayed flat) |
-| BTC hourly, strict uptrend gate | 2024-25 (bull year) | +$3.1 | 1.14 | 10.6% | 12 |
+| *(retired)* BTC hourly, strict uptrend gate | 2025-26 (bear year, BTC −46%) | $0.00 | — | 0% | 0 (stayed flat) |
+| *(retired)* BTC hourly, strict uptrend gate | 2024-25 (bull year) | +$3.1 | 1.14 | 10.6% | 12 |
 | *(retired)* BTC 5m scalp, live config | 2026-03 → 2026-07 (real bars) | −$0.85 | 0.0 | 0.6% | 2 |
+
+NVDA/TSLA options isn't in this table yet — there's no free historical
+options-chain data, so its "backtest" is a modeled Black-Scholes replay over
+stock prices rather than real historical options fills; see
+[Options (NVDA/TSLA)](#options-nvdatsla) for why that's not comparable to
+the rows above, and why paper trading is the actual validation step for it.
 
 **Caveat on the TSLA numbers**: almost all of that +$33.0 came from one
 strong trend year (2024: +$52.0); 2023, 2025, and 2026 were each roughly flat
@@ -180,36 +195,31 @@ Pre-built configs live in `config/`:
 |---|---|---|
 | `config/paper_spy.env` | TSLA | Paper trading equities (hourly trend, multi-day holds) |
 | `config/live_spy.env` | TSLA | Small-account live equities — the recommended live profile |
-| `config/paper_btc.env` | BTC/USD | Paper trading Bitcoin (defensive uptrend-only) |
-| `config/live_btc.env` | BTC/USD | Live Bitcoin — defensive, dormant outside confirmed uptrends |
-| `config/paper_tsladay.env` | TSLA | **Experimental.** Same-day intraday TSLA (15m bars, bidirectional, flat by close, 1 trade/day cap) — paper only, see caveats below |
-| `config/live_tsladay.env` | TSLA | Same as above; not recommended live yet (only ~60 trading days of backtest evidence) |
-| `config/paper_options.env` | NVDA, TSLA | **New, paper only.** Long calls/puts on the equity trend signal — see [Options (NVDA/TSLA)](#options-nvdatsla) below and `docs/strategy_options_2026-08.md` |
-| `config/live_options.env` | NVDA, TSLA | Same as above; not recommended live yet — no paper track record for this strategy |
+| `config/paper_options.env` | NVDA, TSLA | **Active focus.** Long calls/puts on the equity trend signal, paper only — see [Options (NVDA/TSLA)](#options-nvdatsla) below and `docs/strategy_options_2026-08.md` |
+| `config/live_options.env` | NVDA, TSLA | Same as above; not recommended live yet — running the paper profile for a real stretch first is the whole point |
+
+A defensive BTC/USD profile and an experimental same-day TSLA intraday
+profile (`tsladay`) previously shipped here and have been retired — see
+`docs/strategy_revamp_2026-07.md` and `docs/strategy_tsla_day_2026-08.md`
+for the evidence behind why, kept as historical record.
 
 See `docs/strategy_tsla_2026-08.md` for the replay evidence behind the
 `spy`-market equity profile (and `docs/strategy_revamp_2026-07.md` for the
-earlier QQQ revamp it replaced), and `docs/strategy_tsla_day_2026-08.md` for
-the `tsladay` intraday variant — a different, higher-frequency strategy for
-capturing TSLA's intraday swings rather than multi-day trends, built to
-respect a $150 cash account's T+1 settlement limits (flat by close, capped at
-1 trade/day). Run the paper profile for a real stretch before considering it
-for live capital.
+earlier QQQ revamp it replaced).
 
 Load a profile by setting `BOT_PROFILE` / `BOT_MARKET`, by sourcing the file before running, or with the profile runner:
 
 ```powershell
 python -m bot.profile_runner paper trade spy
 python -m bot.profile_runner live trade spy
+python -m bot.profile_runner paper trade options
 ```
 
 Before relying on a schedule, verify both the paper account and market-data feed (this never places an order):
 
 ```bash
-python -m bot.profile_runner paper connectivity btc
+python -m bot.profile_runner paper connectivity options
 ```
-
-The BTC paper profile is an exploration profile: it permits up to 8 entries per day with a one-bar cooldown and slightly looser ADX/volume gates, while reducing target notional to 25% and ATR risk sizing to 1%. Live BTC settings are unchanged. The EC2 paper schedule refreshes its monitor hourly and its historical research report daily.
 
 ## Run
 
@@ -220,21 +230,21 @@ docker compose run --rm paper
 # Live trade (equity config, Alpaca live account)
 docker compose run --rm trade
 
-# BTC variants
-docker compose run --rm paper-btc
-docker compose run --rm trade-btc
-
-# Experimental same-day TSLA intraday variant (paper only for now)
-docker compose run --rm paper-tsladay
-
-# NVDA/TSLA long calls/puts (paper only for now — see Options section below)
+# NVDA/TSLA long calls/puts (paper only for now — see Options section below;
+# this is the active week-long evaluation)
 docker compose run --rm paper-options
 
 # Generate monitor report
 docker compose run --rm monitor
 
-# Generate paper BTC monitor report
+# Generate paper equity monitor report
 docker compose run --rm paper-monitor
+
+# Generate paper options monitor report
+docker compose run --rm paper-options-monitor
+
+# Generate today's real (non-synthetic) daily Markdown report for paper-options
+docker compose run --rm paper-options-daily
 
 # Validate the full build and runtime setup
 docker compose run --rm validate
@@ -285,11 +295,9 @@ Run the walk-forward optimizer:
 docker compose run --rm optimize
 ```
 
-BTC equivalent:
-
-```powershell
-python -m bot.profile_runner live optimize btc
-```
+The optimizer isn't implemented for the options market yet — use `research`
+to generate a report there instead (`docker compose run --rm
+research-options-nvda` / `research-options-tsla`).
 
 The optimizer now logs progress while it runs. For a quick smoke test, cap the search first:
 
@@ -319,8 +327,8 @@ registry or AWS IAM setup involved. Full setup steps, required secrets, and
 verification commands are in `docs/github_actions_ec2.md`.
 
 It triggers automatically on pushes to `master`, or manually from the
-Actions tab with a chosen profile (`live`/`paper`) and market
-(`spy`/`btc`, defaults to `spy`).
+Actions tab with a chosen profile (`live`/`paper`); the deploy market is
+fixed at `spy` (the live equity strategy).
 
 ### Security Notes
 
@@ -333,7 +341,7 @@ Actions tab with a chosen profile (`live`/`paper`) and market
 ## Project Structure
 
 - `bot/` - trading logic, broker integration, storage, reporting
-- `config/` - per-profile env files (`live_spy`, `paper_spy`, `live_btc`, `paper_btc`)
+- `config/` - per-profile env files (`live_spy`, `paper_spy`, `live_options`, `paper_options`)
 - `data/` - SQLite database
 - `logs/` - runtime logs and CSV snapshots
 - `reports/` - generated reports
@@ -358,30 +366,12 @@ The bot has multiple independent safety layers:
 | Entry cooldown | `COOLDOWN_BARS` | 2 bars |
 | Stale data check | `ENABLE_STALE_BAR_CHECK` | false |
 
-## Crypto (BTC/USD)
-
-Set `IS_CRYPTO=true` (or use `config/paper_btc.env` / `config/live_btc.env`) to enable crypto mode:
-
-- Uses `CryptoHistoricalDataClient` for bar data (no IEX feed requirement)
-- Bypasses NYSE market-hours check — trades 24/7
-- Orders use `TimeInForce.GTC` instead of `DAY`
-- Position sizing returns fractional quantities (e.g. `0.0005 BTC`)
-- Trades hourly bars like the equity profile; cron runs once an hour around the clock (see `docs/github_actions_ec2.md`)
-
-Important for small accounts: Alpaca crypto costs ~0.25% taker fee + spread per
-side (~0.6% per round trip). Replay evidence in `docs/strategy_revamp_2026-07.md`
-shows that at ~$150 of equity this friction exceeds any repeatable intraday
-edge — every high-frequency BTC variant tested lost money after fees. The
-shipped BTC profiles are therefore deliberately defensive: hourly bars, a
-strict 4h uptrend regime gate, near-full-notional single positions, and wide
-trailing exits. Expect them to be dormant in downtrends. Prefer the equity
-profile for growth.
-
 ## Options (NVDA/TSLA)
 
-`config/paper_options.env` / `config/live_options.env` trade **actual
-option contracts** (long calls/puts) on NVDA and TSLA, using the same
-trend signal already validated for TSLA equities — see
+**This is the active strategy focus right now.** `config/paper_options.env`
+/ `config/live_options.env` trade **actual option contracts** (long
+calls/puts) on NVDA and TSLA, using the same trend signal already validated
+for TSLA equities — see
 [`docs/strategy_options_2026-08.md`](docs/strategy_options_2026-08.md) for
 the full rationale. Highlights:
 
@@ -403,8 +393,8 @@ the full rationale. Highlights:
 - **Expect it to trade rarely.** A single NVDA or TSLA contract at the
   target delta/DTE often costs $300–$1,500+ in premium. If nothing
   affordable fits the target band, the bot sits out rather than buying a
-  cheaper, more lottery-like contract — same philosophy as the BTC profile
-  sitting out downtrends.
+  cheaper, more lottery-like contract — sitting out is a deliberate design
+  choice here, not a bug.
 - **Backtest caveat:** there's no free historical options-chain data, so
   `bot/options_research.py` models contract prices with Black-Scholes over
   historical stock prices rather than replaying real historical options
@@ -419,9 +409,36 @@ live) — verify with:
 python -m bot.profile_runner paper connectivity options
 ```
 
-`config/live_options.env` exists so the live path is ready, but — like
-`tsladay` before it — it's **not recommended yet**: run
-`docker compose run --rm paper-options` for a real stretch first.
+`config/live_options.env` exists so the live path is ready, but it's **not
+recommended yet**: run `docker compose run --rm paper-options` for a real
+stretch first.
+
+### One-week paper evaluation
+
+The current plan: run `paper-options` for about a week to gather fills,
+contract-selection quality, and P&L before tuning anything or considering
+live capital. Suggested daily routine:
+
+```bash
+# Run the trading cycle (schedule this, e.g. hourly during market hours —
+# TIMEFRAME_MINUTES=60 on this profile)
+docker compose run --rm paper-options
+
+# Generate today's real (non-synthetic) daily report
+docker compose run --rm paper-options-daily
+
+# Generate the monitor snapshot (rejections, near-misses, open position state)
+docker compose run --rm paper-options-monitor
+```
+
+Read `reports/daily_YYYY-MM-DD.md` (per-day activity, including any option
+contracts opened/closed that day) and `reports/monitor_latest.md` (rolling
+health/rejection view) each day. At the end of the week, use what those
+reports show — trade frequency, contract selection quality (delta/DTE
+actually achieved vs. targeted), fills, and any rejection patterns — to
+decide whether to tune the contract-selection or signal parameters in
+`config/paper_options.env` before running another stretch, rather than
+moving to `config/live_options.env`.
 
 ## Small Equity Accounts
 
@@ -436,19 +453,18 @@ chunk of the account to size or diversify sensibly. `config/live_spy.env`
 
 ## Docs
 
-- [`docs/strategy_options_2026-08.md`](docs/strategy_options_2026-08.md) — the NVDA/TSLA long calls/puts strategy: contract selection rules, friction, affordability at ~$500, and the modeled-backtest caveat
-- [`docs/strategy_tsla_2026-08.md`](docs/strategy_tsla_2026-08.md) — the investigation and evidence behind the current (TSLA) strategy
-- [`docs/strategy_revamp_2026-07.md`](docs/strategy_revamp_2026-07.md) — the earlier QQQ revamp this replaced
+- [`docs/strategy_options_2026-08.md`](docs/strategy_options_2026-08.md) — **the active strategy.** NVDA/TSLA long calls/puts: contract selection rules, friction, affordability at ~$500, and the modeled-backtest caveat
+- [`docs/strategy_tsla_2026-08.md`](docs/strategy_tsla_2026-08.md) — the investigation and evidence behind the live TSLA equity strategy this signal is seeded from
 - [`docs/BUILD_LOG.md`](docs/BUILD_LOG.md) — running log of strategy and infrastructure changes
 - [`docs/github_actions_ec2.md`](docs/github_actions_ec2.md) — EC2 deployment setup
-- [`OPERATIONS.md`](OPERATIONS.md) — day-to-day commands (run, monitor, research, optimize)
-- `docs/strategy_audit_current.md`, `docs/live_account_path_100usd.md` — earlier, now-superseded audits, kept as historical record
+- [`OPERATIONS.md`](OPERATIONS.md) — day-to-day commands (run, monitor, daily report, research, optimize)
+- **Retired, kept as historical record:** `docs/strategy_revamp_2026-07.md` (BTC/QQQ, superseded by the TSLA equity strategy), `docs/strategy_tsla_day_2026-08.md` (the `tsladay` intraday variant, removed from the codebase), `docs/strategy_audit_current.md`, `docs/live_account_path_100usd.md` (earlier, now-superseded audits)
 
 ## Notes
 
 - Keep real API keys only in your local `.env` — never commit them.
-- Without a profile, the raw `bot.main` default is an intraday equity system: it flattens inherited overnight positions on the next session and exits before market close. Both shipped profiles override this — `config/live_spy.env` and `config/live_btc.env` both set `ALLOW_OVERNIGHT_HOLDING=true` and `FLATTEN_BEFORE_CLOSE_MINUTES=0`, since the current strategy is a multi-day trend hold, not an intraday one.
-- The `spy`-market runners write to `runtime/paper` and `runtime/live`; `btc`-market runners write to `runtime/paper_btc` and `runtime/live_btc`.
+- Without a profile, the raw `bot.main` default is an intraday equity system: it flattens inherited overnight positions on the next session and exits before market close. `config/live_spy.env` and `config/live_options.env` both set `ALLOW_OVERNIGHT_HOLDING=true` and `FLATTEN_BEFORE_CLOSE_MINUTES=0`, since the current strategy is a multi-day trend hold, not an intraday one.
+- The `spy`-market runners write to `runtime/paper` and `runtime/live`; `options`-market runners write to `runtime/paper_options` and `runtime/live_options`.
 - Use the optimizer to rank parameter sets on walk-forward windows before going live.
 - Run `scripts/validate.ps1` (Windows) or `scripts/validate.sh` (Unix) for a full local validation pass.
 

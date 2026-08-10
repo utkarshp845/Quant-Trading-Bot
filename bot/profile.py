@@ -11,24 +11,7 @@ from bot.paths import APP_ROOT
 
 DEFAULT_MARKET = "spy"
 SUPPORTED_PROFILES = {"paper", "live"}
-SUPPORTED_MARKETS = {"spy", "btc", "tsladay", "options"}
-
-LIVE_BTC_SAFETY_ENV = {
-    "ALLOW_SHORTS": "false",
-    "POSITION_SIZING_MODE": "atr_risk",
-    "ATR_RISK_PER_TRADE_PCT": "0.0075",
-    "MAX_POSITION_NOTIONAL_PCT": "0.35",
-    "TARGET_POSITION_NOTIONAL_PCT": "0.30",
-    "MIN_ORDER_NOTIONAL": "1.0",
-    "HARD_STOP_ATR_MULT": "2.0",
-    "ENABLE_STALE_BAR_CHECK": "true",
-    "MAX_BAR_AGE_SECONDS": "600",
-    "MAX_DAILY_DRAWDOWN_PCT": "0.025",
-    "MAX_DAILY_LOSS": "3",
-    "MAX_CONSECUTIVE_LOSSES": "2",
-    "MAX_TRADES_PER_DAY": "3",
-    "MAX_CONSECUTIVE_ENTRY_FAILURES_PER_DAY": "1",
-}
+SUPPORTED_MARKETS = {"spy", "options"}
 
 
 def _load_base_env() -> None:
@@ -98,24 +81,6 @@ def _set_market_defaults(market: str, profile_env_keys: set[str] | None = None) 
             "ALLOW_OVERNIGHT_HOLDING": "false",
             "FLATTEN_BEFORE_CLOSE_MINUTES": "5",
         }
-    elif market == "btc":
-        defaults = {
-            "SYMBOL": "BTC/USD",
-            "IS_CRYPTO": "true",
-            "ALLOW_OVERNIGHT_HOLDING": "true",
-            "FLATTEN_BEFORE_CLOSE_MINUTES": "0",
-        }
-    elif market == "tsladay":
-        # Same-day-only variant: no overnight TSLA gap exposure, and capped
-        # (via MAX_TRADES_PER_DAY in the profile env) at ~1 round trip/day so
-        # a $150 cash account doesn't risk a good-faith violation from
-        # reusing unsettled (T+1) proceeds.
-        defaults = {
-            "SYMBOL": "TSLA",
-            "IS_CRYPTO": "false",
-            "ALLOW_OVERNIGHT_HOLDING": "false",
-            "FLATTEN_BEFORE_CLOSE_MINUTES": "15",
-        }
     elif market == "options":
         # NVDA/TSLA long calls/puts on the existing trend signal. Unlike
         # every other market, this one evaluates multiple symbols
@@ -136,7 +101,7 @@ def _set_market_defaults(market: str, profile_env_keys: set[str] | None = None) 
         raise ValueError(f"Unsupported bot market: {market}")
 
     # The profile's env file is the operator's explicit intent; market values
-    # only fill the gaps (same contract as LIVE_BTC_SAFETY_ENV below).
+    # only fill the gaps.
     for key, value in defaults.items():
         if key not in profile_env_keys:
             os.environ[key] = value
@@ -158,11 +123,6 @@ def _set_profile_defaults(profile: str, market: str, profile_env_keys: set[str] 
         os.environ.setdefault("STRATEGY_VERSION", f"v2-live-{market}")
     else:
         raise ValueError(f"Unsupported bot profile: {profile}")
-
-    if profile == "live" and market == "btc":
-        for key, value in LIVE_BTC_SAFETY_ENV.items():
-            if key not in profile_env_keys:
-                os.environ[key] = value
 
 
 def load_profile(profile: str, market: str | None = None) -> None:

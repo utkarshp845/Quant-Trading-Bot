@@ -46,8 +46,8 @@ class OptimizeStrategyTests(unittest.TestCase):
         self.assertEqual(candidates[0]["SMA_FAST"], "20")
         self.assertEqual(candidates[0]["SMA_SLOW"], "50")
 
-    def test_btc_default_grid_includes_activity_bottleneck_values(self):
-        with patch.dict(os.environ, {"SYMBOL": "BTC/USD", "BOT_MARKET": "btc"}, clear=True):
+    def test_default_grid_values(self):
+        with patch.dict(os.environ, {"SYMBOL": "TSLA", "BOT_MARKET": "spy"}, clear=True):
             grid = _candidate_grid()
 
         self.assertEqual(grid["LONG_ADX_THRESHOLD"], ["20", "22", "25"])
@@ -59,8 +59,8 @@ class OptimizeStrategyTests(unittest.TestCase):
         self.assertEqual(grid["PULLBACK_MAX_DEPTH_ATR"], ["1.2", "1.5", "1.8"])
         self.assertEqual(grid["MIN_VOLUME_RATIO"], ["1.00", "1.05", "1.10"])
         self.assertEqual(grid["SPIKE_BAR_MAX_RANGE_ATR"], ["1.8", "2.0", "2.2"])
-        self.assertEqual(grid["ATR_MAX_PCT"], ["0.015"])
-        self.assertEqual(grid["LONG_ATR_MAX_PCT"], ["0.012"])
+        self.assertEqual(grid["ATR_MAX_PCT"], ["0.0030", "0.0035", "0.0045"])
+        self.assertEqual(grid["LONG_ATR_MAX_PCT"], ["0.0025", "0.0030", "0.0035"])
 
     def test_score_candidate_rewards_robust_test_results(self):
         weak_full = {"profit_factor": 0.95, "max_drawdown": -0.02, "trades_per_day": 2.0}

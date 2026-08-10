@@ -2,6 +2,14 @@
 
 Date: 2026-07-12
 
+> **Note (2026-08-10):** the BTC profile discussed throughout this doc
+> (`config/paper_btc.env` / `config/live_btc.env`) has since been retired
+> and removed from the codebase — active strategy work is now focused on
+> the live TSLA equity strategy this doc's QQQ→TSLA revamp produced, plus
+> NVDA/TSLA options (`docs/strategy_options_2026-08.md`). The evidence and
+> reasoning below are kept as historical record; see `docs/BUILD_LOG.md` for
+> the removal entry.
+
 ## Why the live BTC bot made no valuable trades
 
 Replaying the exact `config/live_btc.env` that was deployed (5-minute BTC/USD,

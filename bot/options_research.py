@@ -10,8 +10,7 @@ premiums around events (earnings, macro surprises) where implied vol runs
 richer than trailing realized vol. Treat this report as a directional sanity
 check on the delta/DTE/sizing rules, not proof of live viability — the real
 validation step is paper trading against live Alpaca options quotes for a
-real stretch, the same way `tsladay` is being proven out before it's
-trusted live.
+real stretch (the active evaluation right now) before it's trusted live.
 
 The entry/exit *decision* logic (trend signal, hard stop, trailing stop,
 regime invalidation, time stop) is intentionally identical to
