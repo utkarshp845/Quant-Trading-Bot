@@ -1,4 +1,4 @@
-"""Modeled options backtest for the NVDA/TSLA long-calls/puts strategy.
+"""Modeled options backtest for the LCID long-calls/puts strategy.
 
 **This is a modeled backtest, not a real historical options backtest.**
 There is no free historical options-chain data source (unlike the stock
@@ -409,7 +409,7 @@ def main() -> None:
     ensure_runtime_dirs()
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
-    symbol = os.getenv("SYMBOL", "NVDA").strip().upper()
+    symbol = os.getenv("SYMBOL", "LCID").strip().upper()
     timeframe_minutes = int(os.getenv("TIMEFRAME_MINUTES", "60"))
     lookback_days = int(os.getenv("RESEARCH_LOOKBACK_DAYS", "365"))
     starting_equity = float(os.getenv("RESEARCH_STARTING_EQUITY", "500"))

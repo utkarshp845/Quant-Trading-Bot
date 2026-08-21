@@ -2,6 +2,14 @@
 
 Date: 2026-08-09
 
+> **PARTIALLY SUPERSEDED (2026-08-21).** The options profile was narrowed
+> from NVDA+TSLA to **TSLA only** — see
+> `docs/strategy_tsla_options_2026-08.md` for why and what changed.
+> Everything below about contract selection, friction, affordability, and
+> the modeled-backtest caveat still applies unchanged; only the symbol list
+> is out of date. Kept as historical record of the original NVDA/TSLA
+> rationale.
+
 References:
 - `bot/options_pricing.py`, `bot/options_broker_alpaca.py`, `bot/options_engine.py`, `bot/options_research.py`
 - `config/paper_options.env`, `config/live_options.env`

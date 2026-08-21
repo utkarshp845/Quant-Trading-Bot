@@ -6,6 +6,100 @@ possible), and what to watch after deploying it.
 
 ---
 
+## 2026-08-21 — Options underlying switched TSLA → LCID after symbol screen; explicit learning exercise
+
+**What:** Same-day follow-up to the TSLA-only narrowing below. The TSLA-only
+baseline found **zero affordable trades** at the account's real ~$500
+equity — user directed switching to a cheaper underlying instead. Screened
+10 cheaper, liquid, optionable candidates; walk-forward-optimized the top 3
+(LCID/F/SOFI); deep-dove F/SOFI/NIO to test whether the TSLA hard-stop fix
+generalized. Full record: `docs/strategy_options_lcid_2026-08.md`.
+
+**Findings:**
+- LCID was the only candidate (of 10 screened) showing a positive modeled
+  edge (PF 1.72, 20 trades, net +$2,810) — but its net profit is
+  concentrated in 2 trades in 2024; 2025 was flat and 2026 was negative.
+  LCID also fell ~$27→$6 over the sample, a real structural decline, not
+  noise.
+- The TSLA hard-stop finding (widening it helps) does **not** generalize:
+  it helps F, hurts LCID, is mixed on SOFI, and doesn't matter for NIO.
+- F, SOFI, NIO all remained net-negative even after real tuning (walk-forward
+  grid search + hard-stop/delta/DTE sweeps) — not shipped.
+- A dedicated sweep on LCID confirmed the already-shipped, unmodified
+  parameters (hard_stop=2.5, delta=0.65, DTE 25-45) already outperform every
+  variant tried — no signal/contract-selection changes were made.
+
+**Decision:** ship LCID anyway, explicitly framed as a learning/paper
+exercise (generate and analyze real option trades) rather than a validated
+strategy — user's call after seeing the full evidence above.
+
+**Changes:**
+- `config/paper_options.env` / `config/live_options.env`: `SYMBOL` /
+  `OPTION_SYMBOLS` → `LCID`; `STRATEGY_VERSION` → `v3-options-lcid-learning`.
+  No numeric parameter changes.
+- `bot/profile.py`, `bot/options_engine.py`, `bot/options_research.py`,
+  `bot/profile_runner.py`, `bot/report_daily.py`, `docker-compose.yml`
+  (renamed `research-options-tsla` → `research-options-lcid`): defaults and
+  docstrings updated.
+- `README.md`, `OPERATIONS.md`, `docs/github_actions_ec2.md`,
+  `.github/workflows/deploy-ec2.yml`: updated to LCID, framed as a learning
+  exercise.
+- `tests/test_profile.py`: updated `SYMBOL`/`OPTION_SYMBOLS` assertions.
+- `docs/strategy_tsla_options_2026-08.md`: flagged superseded.
+
+**What to watch:** real Alpaca fills vs. modeled premiums (LCID is more
+volatile/lower-priced than TSLA, so the Black-Scholes/realized-vol proxy
+could be further off), whether existing risk limits are adequate for a more
+volatile underlying, and — the actual point — trade frequency and variety
+for learning purposes over raw P&L.
+
+---
+
+## 2026-08-21 — Options strategy narrowed to TSLA-only; refinement baseline established
+
+**What:** Per user request, narrowed the options profile from NVDA+TSLA to
+TSLA only, and shifted from the original fixed one-week paper evaluation to
+an open-ended "refine, then run daily" cadence. Full writeup:
+`docs/strategy_tsla_options_2026-08.md`.
+
+**Changes:**
+- `config/paper_options.env` / `config/live_options.env`: `OPTION_SYMBOLS`
+  and `SYMBOL` narrowed to `TSLA`; `STRATEGY_VERSION` →
+  `v2-options-tsla-only`. No signal/contract-selection/risk parameters
+  changed yet.
+- `bot/profile.py` options-market defaults, `bot/options_engine.py`,
+  `bot/options_research.py`, `bot/profile_runner.py`, `bot/report_daily.py`:
+  default fallbacks and docstrings updated to TSLA-only; the multi-symbol
+  loop in `bot/options_engine.py` was kept generic rather than hard-coded.
+- `docker-compose.yml`: removed the `research-options-nvda` service.
+- `README.md`, `OPERATIONS.md`, `docs/github_actions_ec2.md`,
+  `.github/workflows/deploy-ec2.yml`: updated to TSLA-only and to the
+  ongoing-daily-evaluation framing (was "one-week").
+- `tests/test_profile.py`: updated `SYMBOL`/`OPTION_SYMBOLS` assertions.
+- `docs/strategy_options_2026-08.md`: flagged partially superseded, pointing
+  to the new doc; kept as historical record (contract-selection rules,
+  friction, and affordability rationale in it are all still accurate).
+
+**Baseline finding (modeled backtest, real TSLA hourly bars, unchanged
+inherited parameters):** at the account's actual ~$500 starting equity, the
+current delta/DTE/budget targets find **zero affordable contracts** in the
+full 2.9-year sample. At $10,000 (large enough to see a sample), the
+inherited config is unprofitable — profit factor 0.76, driven almost
+entirely by `hard_stop` exits (-$20,798 across 12 trades) that are far more
+punishing in premium terms than the same ATR-based stop is on the equity
+signal, and by puts underperforming calls badly (-$505/trade avg vs
+-$69/trade avg). One large winner supplies nearly all the (still negative)
+net result. Full breakdown and candidate refinements in
+`docs/strategy_tsla_options_2026-08.md`.
+
+**What to watch:** this is a starting point, not a shipped change to the
+signal — no parameters were tuned in this pass. Next step is backtest-driven
+iteration on the hard-stop sizing, calls-only vs. calls+puts, and
+delta/DTE/budget targets before any of it runs against real paper fills
+again.
+
+---
+
 ## 2026-08-10 — Retired BTC and tsladay; options is now the active strategy focus
 
 **What:** Removed the BTC/USD profile (`config/paper_btc.env`,

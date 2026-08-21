@@ -1,11 +1,15 @@
-"""Live decision engine for the NVDA/TSLA long-calls/puts options strategy.
+"""Live decision engine for the LCID long-calls/puts options strategy.
 
 Parallel to `bot/main.py` (equities), but deliberately evaluates every
 symbol in `OPTION_SYMBOLS` in one process/one run instead of one cron job
 per symbol. That's required to enforce "at most
 `OPTION_MAX_CONCURRENT_POSITIONS` options position(s) open at a time, across
-both symbols combined" — two independent per-symbol cron jobs can't see each
-other's state. See `docs/strategy_options_2026-08.md` for the full rationale.
+all symbols combined" — two independent per-symbol cron jobs can't see each
+other's state. `OPTION_SYMBOLS` is LCID-only as of 2026-08-21 (previously
+NVDA+TSLA, then TSLA-only — TSLA never had an affordable contract at this
+account's real ~$500 equity), but the loop stays multi-symbol-capable in
+case that changes again. See `docs/strategy_options_lcid_2026-08.md` for
+the full rationale.
 
 This is a v1: it reuses the same signal engine, risk gate, and trade-control
 bookkeeping as the equity bot, but its order-fill reconciliation is simpler
@@ -79,7 +83,7 @@ def _as_float(value) -> float | None:
 
 
 def _symbols_from_env() -> list[str]:
-    raw = os.getenv("OPTION_SYMBOLS", "NVDA,TSLA")
+    raw = os.getenv("OPTION_SYMBOLS", "LCID")
     return [token.strip().upper() for token in raw.split(",") if token.strip()]
 
 

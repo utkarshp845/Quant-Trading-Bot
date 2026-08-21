@@ -139,7 +139,7 @@ docker compose run --rm paper
 docker compose run --rm trade
 ```
 
-NVDA/TSLA options (paper only for now — the active strategy focus):
+LCID options (paper only for now — the active strategy focus, a learning exercise):
 
 ```powershell
 docker compose run --rm paper-options
@@ -182,14 +182,18 @@ Current runtime defaults:
 - end-of-day flattening starts `5` minutes before the close by default; override with `FLATTEN_BEFORE_CLOSE_MINUTES`
 - `paper` and `trade` select separate Alpaca key pairs from `.env` when `ALPACA_PAPER_*` and `ALPACA_LIVE_*` variables are set
 - `config/live_spy.env` trades TSLA on hourly bars (fractional, long-only, ~60% notional) and is the recommended default live profile for a small account; see `docs/strategy_tsla_2026-08.md` for the replay evidence. Replay any change to it before relying on it live.
-- `config/paper_options.env` / `config/live_options.env` (market `options`) trade NVDA/TSLA long calls/puts on the same trend signal — see `docs/strategy_options_2026-08.md`. Paper only for now; this is the active week-long evaluation (see the README's "One-week paper evaluation" section).
+- `config/paper_options.env` / `config/live_options.env` (market `options`) trade LCID long calls/puts on the same TSLA-seeded trend signal, unmodified — see `docs/strategy_options_lcid_2026-08.md`. Paper only for now; this is the active, ongoing daily evaluation (see "Daily LCID Options Evaluation" below), run explicitly as a learning exercise since LCID's own backtested edge is thin.
 
-## One-Week Paper-Options Evaluation
+## Daily LCID Options Evaluation
 
-`paper-options` now runs unattended on EC2 via its own cron schedule,
-installed by `deploy/ec2/deploy_remote.sh` / `deploy/ec2/install_cron.sh`
-(see `docs/github_actions_ec2.md`) — no need to trigger cycles by hand once
-deployed. The operating plan:
+`paper-options` runs unattended on EC2 via its own cron schedule, installed
+by `deploy/ec2/deploy_remote.sh` / `deploy/ec2/install_cron.sh` (see
+`docs/github_actions_ec2.md`) — no need to trigger cycles by hand once
+deployed. As of 2026-08-21 this replaced the original fixed one-week
+evaluation window: the plan now is to keep refining `config/paper_options.env`
+against the modeled backtest, then run the current best config against real
+LCID paper fills every trading day indefinitely, rather than stopping after
+a single week. The operating plan:
 
 1. Confirm the schedule is installed: `crontab -l` on EC2 should show three
    `# trading-bot-paper-options` entries (trade, monitor, daily report).
@@ -199,12 +203,12 @@ deployed. The operating plan:
    - Pull them locally with `scp`, or `docker compose run --rm
      paper-options-daily` / `paper-options-monitor` to regenerate on demand
      (locally, this needs working paper Alpaca keys in your `.env`).
-3. At the end of the stretch, review: trade frequency, whether selected
-   contracts actually landed near the target delta/DTE band, fill quality,
-   rejection patterns (near-misses in the monitor report), and realized P&L.
-4. Use that evidence to tune `config/paper_options.env` (contract-selection
-   or signal parameters) before running another stretch — don't move to
-   `config/live_options.env` until a paper stretch's results support it.
+3. Periodically review: trade frequency, whether selected contracts actually
+   landed near the target delta/DTE band, fill quality, rejection patterns
+   (near-misses in the monitor report), and realized P&L.
+4. Feed that evidence back into `config/paper_options.env` tuning
+   (contract-selection or signal parameters) — don't move to
+   `config/live_options.env` until the paper results support it.
 
 ## Notes
 
@@ -219,7 +223,7 @@ The repo includes a GitHub Actions workflow for EC2 deploys:
 - `workflow: .github/workflows/deploy-ec2.yml`
 - `docs: docs/github_actions_ec2.md`
 
-The deployment path syncs the repo to EC2, uploads the server `.env`, validates the selected profile, and installs a cron schedule for repeated runs. The deploy market is fixed at `spy` (the live equity strategy). It also validates and installs an **independent** cron schedule for `paper-options` (NVDA/TSLA, the active week-long paper evaluation) by default — see `docs/github_actions_ec2.md` for the schedule and how to opt out (`install_options_cron: false` on a manual dispatch).
+The deployment path syncs the repo to EC2, uploads the server `.env`, validates the selected profile, and installs a cron schedule for repeated runs. The deploy market is fixed at `spy` (the live equity strategy). It also validates and installs an **independent** cron schedule for `paper-options` (TSLA, the active ongoing daily paper evaluation) by default — see `docs/github_actions_ec2.md` for the schedule and how to opt out (`install_options_cron: false` on a manual dispatch).
 
 ## Validation Script
 

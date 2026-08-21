@@ -26,7 +26,7 @@ predict future results. See [Disclaimer](#disclaimer).
 - [Run / Validate / Monitor](#run)
 - [Deployment](#deployment)
 - [Risk Controls](#risk-controls)
-- [Options (NVDA/TSLA)](#options-nvdatsla)
+- [Options (LCID)](#options-lcid)
 - [Small Equity Accounts](#small-equity-accounts)
 - [Docs](#docs)
 - [Disclaimer](#disclaimer)
@@ -45,7 +45,7 @@ It currently:
 - generates trend-following signals on a configurable timeframe
 - applies layered risk checks before entering trades (daily drawdown, consecutive losses, cooldown, hard stop)
 - manages exits via trailing stop, hard stop, breakeven stop, profit lock, time stop, and trend reversal
-- trades that same signal as either equity shares or long calls/puts (see [Options (NVDA/TSLA)](#options-nvdatsla)) — the active focus right now is a week-long NVDA/TSLA options paper-trading evaluation
+- trades that same signal as either equity shares or long calls/puts (see [Options (LCID)](#options-lcid)) — the active focus right now is the daily LCID options paper-trading cycle, run as an explicit learning exercise
 - records runs, orders, events, and closed trades in SQLite
 - writes daily and monitoring reports to `reports/`
 
@@ -98,14 +98,18 @@ winning trends for days rather than minutes. Position sizing is trimmed
 relative to the earlier QQQ profile because TSLA's hourly volatility runs
 ~3x QQQ's.
 
-**Active focus right now: NVDA/TSLA options, paper only.** The same trend
-signal is also expressed as long calls/puts (`config/paper_options.env`) —
-see [Options (NVDA/TSLA)](#options-nvdatsla). It's running paper-only for a
-real stretch (about a week to start) to gather fills, contract-selection
-quality, and P&L before any tuning or a live decision. Two earlier
-strategies — a defensive BTC/USD profile and an experimental same-day TSLA
-intraday variant (`tsladay`) — were retired and removed from the active
-codebase; see [`docs/BUILD_LOG.md`](docs/BUILD_LOG.md) for why, and
+**Active focus right now: LCID options, paper only.** The same trend
+signal is also expressed as long calls/puts. Symbol history: NVDA+TSLA
+(2026-08-10) → TSLA-only (2026-08-21) → **LCID** (2026-08-21, same day) —
+TSLA never had an affordable contract at this account's real ~$500 equity,
+so after screening 10+ cheaper symbols and walk-forward-optimizing the top
+3, LCID was picked as the only one showing a positive modeled edge. That
+edge is thin (concentrated in 2 trades in one year), so this is run
+explicitly as a learning/paper exercise, not a validated strategy — see
+[Options (LCID)](#options-lcid). Two earlier strategies — a defensive
+BTC/USD profile and an experimental same-day TSLA intraday variant
+(`tsladay`) — were retired and removed from the active codebase; see
+[`docs/BUILD_LOG.md`](docs/BUILD_LOG.md) for why, and
 `docs/strategy_revamp_2026-07.md` / `docs/strategy_tsla_day_2026-08.md` for
 the retired evidence.
 
@@ -121,10 +125,10 @@ backtest results, not live account performance**):
 | *(retired)* BTC hourly, strict uptrend gate | 2024-25 (bull year) | +$3.1 | 1.14 | 10.6% | 12 |
 | *(retired)* BTC 5m scalp, live config | 2026-03 → 2026-07 (real bars) | −$0.85 | 0.0 | 0.6% | 2 |
 
-NVDA/TSLA options isn't in this table yet — there's no free historical
+LCID options isn't in this table yet — there's no free historical
 options-chain data, so its "backtest" is a modeled Black-Scholes replay over
 stock prices rather than real historical options fills; see
-[Options (NVDA/TSLA)](#options-nvdatsla) for why that's not comparable to
+[Options (LCID)](#options-lcid) for why that's not comparable to
 the rows above, and why paper trading is the actual validation step for it.
 
 **Caveat on the TSLA numbers**: almost all of that +$33.0 came from one
@@ -195,8 +199,8 @@ Pre-built configs live in `config/`:
 |---|---|---|
 | `config/paper_spy.env` | TSLA | Paper trading equities (hourly trend, multi-day holds) |
 | `config/live_spy.env` | TSLA | Small-account live equities — the recommended live profile |
-| `config/paper_options.env` | NVDA, TSLA | **Active focus.** Long calls/puts on the equity trend signal, paper only — see [Options (NVDA/TSLA)](#options-nvdatsla) below and `docs/strategy_options_2026-08.md` |
-| `config/live_options.env` | NVDA, TSLA | Same as above; not recommended live yet — running the paper profile for a real stretch first is the whole point |
+| `config/paper_options.env` | LCID | **Active focus.** Long calls/puts on the equity trend signal, paper only, explicitly a learning exercise — see [Options (LCID)](#options-lcid) below and `docs/strategy_options_lcid_2026-08.md` |
+| `config/live_options.env` | LCID | Same as above; not recommended live yet — running the paper profile for a real stretch first is the whole point |
 
 A defensive BTC/USD profile and an experimental same-day TSLA intraday
 profile (`tsladay`) previously shipped here and have been retired — see
@@ -230,8 +234,8 @@ docker compose run --rm paper
 # Live trade (equity config, Alpaca live account)
 docker compose run --rm trade
 
-# NVDA/TSLA long calls/puts (paper only for now — see Options section below;
-# this is the active week-long evaluation)
+# LCID long calls/puts (paper only for now, a learning exercise — see
+# Options section below)
 docker compose run --rm paper-options
 
 # Generate monitor report
@@ -297,7 +301,7 @@ docker compose run --rm optimize
 
 The optimizer isn't implemented for the options market yet — use `research`
 to generate a report there instead (`docker compose run --rm
-research-options-nvda` / `research-options-tsla`).
+research-options-tsla`).
 
 The optimizer now logs progress while it runs. For a quick smoke test, cap the search first:
 
@@ -331,7 +335,7 @@ Actions tab with a chosen profile (`live`/`paper`); the deploy market is
 fixed at `spy` (the live equity strategy). Every deploy also validates and
 schedules the `paper-options` profile on its own independent cron (default
 on; `install_options_cron: false` on a manual dispatch to skip it) — that's
-what keeps the week-long NVDA/TSLA paper evaluation running unattended.
+what keeps the daily LCID options paper evaluation running unattended.
 
 ### Security Notes
 
@@ -369,14 +373,19 @@ The bot has multiple independent safety layers:
 | Entry cooldown | `COOLDOWN_BARS` | 2 bars |
 | Stale data check | `ENABLE_STALE_BAR_CHECK` | false |
 
-## Options (NVDA/TSLA)
+## Options (LCID)
 
-**This is the active strategy focus right now.** `config/paper_options.env`
+**This is the active strategy focus right now — run explicitly as a
+learning exercise, not a validated strategy.** `config/paper_options.env`
 / `config/live_options.env` trade **actual option contracts** (long
-calls/puts) on NVDA and TSLA, using the same trend signal already validated
-for TSLA equities — see
-[`docs/strategy_options_2026-08.md`](docs/strategy_options_2026-08.md) for
-the full rationale. Highlights:
+calls/puts) on LCID, reusing (unmodified) the same trend signal already
+validated for TSLA equities. Symbol history: NVDA+TSLA → TSLA-only → LCID,
+all on 2026-08-21/thereabouts, because TSLA (and NVDA before it) never had
+an affordable contract at this account's real ~$500 equity — see
+[`docs/strategy_options_lcid_2026-08.md`](docs/strategy_options_lcid_2026-08.md)
+for the full screening evidence, including why LCID's backtested edge
+should be treated with real caution (net profit concentrated in 2 trades in
+one year). Highlights:
 
 - **Both directions, bounded risk.** Unlike the equity profiles
   (`ALLOW_SHORTS=false`, because naked stock shorting has undefined risk on
@@ -388,16 +397,24 @@ the full rationale. Highlights:
   with wide bid-ask spreads, and blocks new entries near earnings. The goal
   is to keep the contract's price behavior close to the underlying's real
   (modest) edge, not to buy cheap far-OTM lottery tickets.
-- **One position at a time, across NVDA and TSLA combined**
-  (`bot/options_engine.py` evaluates both symbols in a single run so this
-  is enforceable) — a ~$500 account can't support two "real" options
-  positions without either concentrating too much or degrading both toward
-  lottery tickets.
-- **Expect it to trade rarely.** A single NVDA or TSLA contract at the
-  target delta/DTE often costs $300–$1,500+ in premium. If nothing
-  affordable fits the target band, the bot sits out rather than buying a
-  cheaper, more lottery-like contract — sitting out is a deliberate design
-  choice here, not a bug.
+- **One position at a time.** (`bot/options_engine.py` still loops over
+  `OPTION_SYMBOLS`, kept generic in case a second symbol is added back
+  later, but the profile only lists LCID today.)
+- **Why LCID, not TSLA.** At the target 0.65 delta / 25-45 DTE / 55%-budget
+  targets, TSLA produced **zero affordable trades** in a full 2.9-year
+  modeled replay at the account's real ~$500 equity. LCID's much lower
+  share price makes contracts affordable at the same targets — ~20 trades
+  in the same replay window — which is why it was picked after screening
+  10+ cheaper symbols.
+- **Thin, concentrated backtest edge — treat with real caution.** LCID's
+  modeled net profit (+$2,810, PF 1.72 over 20 trades) is driven almost
+  entirely by 2 trades in 2024; 2025 was flat and 2026 (partial) was
+  negative. A hard-stop-widening and delta/DTE sweep specifically on LCID
+  found the unmodified signal already outperforms every variant tried, so
+  no further tuning was applied — but that also means this hasn't been
+  independently validated the way the TSLA equity signal has. This is run
+  as a learning exercise: expect real losses are possible, not just a
+  technicality.
 - **Backtest caveat:** there's no free historical options-chain data, so
   `bot/options_research.py` models contract prices with Black-Scholes over
   historical stock prices rather than replaying real historical options
@@ -457,7 +474,9 @@ chunk of the account to size or diversify sensibly. `config/live_spy.env`
 
 ## Docs
 
-- [`docs/strategy_options_2026-08.md`](docs/strategy_options_2026-08.md) — **the active strategy.** NVDA/TSLA long calls/puts: contract selection rules, friction, affordability at ~$500, and the modeled-backtest caveat
+- [`docs/strategy_options_lcid_2026-08.md`](docs/strategy_options_lcid_2026-08.md) — **the active strategy.** LCID long calls/puts: the full symbol-screening evidence (10+ candidates, walk-forward optimization, why TSLA/F/SOFI/NIO were ruled out), and why LCID's edge is thin and this runs as a learning exercise
+- [`docs/strategy_tsla_options_2026-08.md`](docs/strategy_tsla_options_2026-08.md) — TSLA-only interim step (2026-08-21): why NVDA was dropped, baseline modeled-backtest results; superseded by the LCID doc above, kept as historical record
+- [`docs/strategy_options_2026-08.md`](docs/strategy_options_2026-08.md) — original NVDA/TSLA rationale (contract selection rules, friction, affordability, modeled-backtest caveat); partially superseded, kept as historical record
 - [`docs/strategy_tsla_2026-08.md`](docs/strategy_tsla_2026-08.md) — the investigation and evidence behind the live TSLA equity strategy this signal is seeded from
 - [`docs/BUILD_LOG.md`](docs/BUILD_LOG.md) — running log of strategy and infrastructure changes
 - [`docs/github_actions_ec2.md`](docs/github_actions_ec2.md) — EC2 deployment setup

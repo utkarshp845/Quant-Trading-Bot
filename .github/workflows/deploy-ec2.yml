@@ -20,7 +20,7 @@ on:
         default: true
         type: boolean
       install_options_cron:
-        description: Install or refresh the paper-options schedule (NVDA/TSLA, the active week-long paper evaluation) — independent of the profile/market above
+        description: Install or refresh the paper-options schedule (LCID, the active ongoing daily paper evaluation) — independent of the profile/market above
         required: true
         default: true
         type: boolean
