@@ -83,7 +83,7 @@ def main(argv: list[str] | None = None) -> int:
         if options_market:
             from bot.options_broker_alpaca import validate_options_connectivity
 
-            symbols = [s.strip().upper() for s in os.getenv("OPTION_SYMBOLS", "NVDA,TSLA").split(",") if s.strip()]
+            symbols = [s.strip().upper() for s in os.getenv("OPTION_SYMBOLS", "LCID").split(",") if s.strip()]
             try:
                 result = validate_options_connectivity(symbols)
             except RuntimeError as exc:

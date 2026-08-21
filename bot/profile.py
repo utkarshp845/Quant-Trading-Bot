@@ -82,15 +82,21 @@ def _set_market_defaults(market: str, profile_env_keys: set[str] | None = None) 
             "FLATTEN_BEFORE_CLOSE_MINUTES": "5",
         }
     elif market == "options":
-        # NVDA/TSLA long calls/puts on the existing trend signal. Unlike
-        # every other market, this one evaluates multiple symbols
-        # (OPTION_SYMBOLS) in a single process/run — see
-        # bot/options_engine.py and docs/strategy_options_2026-08.md. Long
-        # options bound risk to premium paid, so — unlike the equity
-        # profiles — shorts (puts) are enabled by default here.
+        # LCID long calls/puts on the existing (TSLA-seeded) trend signal.
+        # NVDA/TSLA (2026-08-10) -> TSLA-only (2026-08-21) -> LCID
+        # (2026-08-21, same day): TSLA never had an affordable contract at
+        # this account's real ~$500 equity. LCID was picked after screening
+        # 10+ cheaper symbols and walk-forward-optimizing the top 3 — see
+        # docs/strategy_options_lcid_2026-08.md. Its modeled edge is thin
+        # (net profit concentrated in 2 trades), so this is explicitly a
+        # learning/paper exercise, not a validated strategy. OPTION_SYMBOLS
+        # still drives bot/options_engine.py's evaluation loop and could
+        # hold more than one symbol again later. Long options bound risk to
+        # premium paid, so — unlike the equity profiles — shorts (puts) are
+        # enabled by default here.
         defaults = {
-            "SYMBOL": "NVDA",
-            "OPTION_SYMBOLS": "NVDA,TSLA",
+            "SYMBOL": "LCID",
+            "OPTION_SYMBOLS": "LCID",
             "IS_CRYPTO": "false",
             "IS_OPTIONS": "true",
             "ALLOW_SHORTS": "true",

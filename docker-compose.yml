@@ -26,12 +26,13 @@ services:
     <<: *bot
     command: ["python", "-m", "bot.profile_runner", "paper", "monitor", "spy"]
 
-  # NVDA/TSLA long calls/puts on the existing trend signal — see
-  # config/paper_options.env and docs/strategy_options_2026-08.md. Paper
-  # only for now: run this for a real stretch (currently the active
-  # evaluation window) before ever considering trade-options live.
-  # Requires options trading enabled on the Alpaca paper account first
-  # (Alpaca's own dashboard — separate approval from live).
+  # LCID long calls/puts on the existing trend signal — see
+  # config/paper_options.env and docs/strategy_options_lcid_2026-08.md.
+  # Paper only, explicitly a learning exercise (thin/concentrated backtest
+  # evidence, not a validated edge) — run before ever considering
+  # trade-options live. Requires options trading enabled on the Alpaca
+  # paper account first (Alpaca's own dashboard — separate approval from
+  # live).
   paper-options:
     <<: *bot
     command: ["python", "-m", "bot.profile_runner", "paper", "trade", "options"]
@@ -47,25 +48,18 @@ services:
     command: ["python", "-m", "bot.profile_runner", "paper", "monitor", "options"]
 
   # Daily Markdown report (reports/daily_YYYY-MM-DD.md) built from the real
-  # paper-options runtime database — run this once a day during the
-  # week-long paper evaluation to track fills, contract selection, and P&L.
+  # paper-options runtime database — run this once a day to track fills,
+  # contract selection, and P&L.
   paper-options-daily:
     <<: *bot
     command: ["python", "-m", "bot.profile_runner", "paper", "daily", "options"]
 
-  # bot/options_research.py researches one SYMBOL per run (default NVDA, set
-  # by config/*_options.env) — run both services to get a report for each
-  # underlying.
-  research-options-nvda:
+  # bot/options_research.py researches one SYMBOL per run (default LCID, set
+  # by config/*_options.env).
+  research-options-lcid:
     <<: *bot
     environment:
-      - SYMBOL=NVDA
-    command: ["python", "-m", "bot.profile_runner", "live", "research", "options"]
-
-  research-options-tsla:
-    <<: *bot
-    environment:
-      - SYMBOL=TSLA
+      - SYMBOL=LCID
     command: ["python", "-m", "bot.profile_runner", "live", "research", "options"]
 
   research:

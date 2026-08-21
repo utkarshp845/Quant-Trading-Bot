@@ -166,7 +166,7 @@ def main():
     is_options = _env_bool("IS_OPTIONS")
     if is_options:
         symbol = ", ".join(
-            s.strip().upper() for s in os.getenv("OPTION_SYMBOLS", "NVDA,TSLA").split(",") if s.strip()
+            s.strip().upper() for s in os.getenv("OPTION_SYMBOLS", "LCID").split(",") if s.strip()
         )
     else:
         symbol = os.getenv("SYMBOL", "SPY").strip().upper()
@@ -188,7 +188,7 @@ def main():
 
     lines: list[str] = [f"# Daily Report ({report_date_et} ET)", "", f"**Symbol:** {symbol}"]
     if is_options:
-        lines.append("**Strategy:** NVDA/TSLA long calls/puts (options)")
+        lines.append("**Strategy:** LCID long calls/puts (options)")
 
     strategy_version = os.getenv("STRATEGY_VERSION", "").strip() or None
     if not runs.empty and "ts" in runs.columns:

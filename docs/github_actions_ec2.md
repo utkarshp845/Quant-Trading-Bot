@@ -13,7 +13,7 @@ What it does:
 - runs `python -m bot.profile_runner <paper|live> validate spy` on EC2 (the deploy market is fixed at `spy`)
 - installs a cron schedule for the chosen profile in `America/New_York`
 - also validates and installs an independent cron schedule for the
-  `paper-options` profile (NVDA/TSLA, the active week-long paper
+  `paper-options` profile (LCID, the active ongoing daily paper
   evaluation) unless `install_options_cron` is turned off
 
 ## Required GitHub Secrets
